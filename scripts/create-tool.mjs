@@ -81,7 +81,11 @@ function lifecycleProjectJson({ name, type, targets, toolPath }) {
   const v = `packages/validation/src/cli.mjs`;
   return JSON.stringify({
     name,
-    $schema: path.relative(toolPath, path.join(REPO_ROOT, 'node_modules/nx/schemas/project-schema.json')).split(path.sep).join('/'),
+    // Resolve both operands under REPO_ROOT so the result is always a REPO_ROOT-relative
+    // path. Passing the repo-relative toolPath directly would resolve it against process.cwd()
+    // and, when the repo and REPO_ROOT sit on different drives (e.g. Windows temp vs workspace),
+    // path.relative would emit an absolute path — breaking the schema link and tripping SEC005.
+    $schema: path.relative(path.join(REPO_ROOT, toolPath), path.join(REPO_ROOT, 'node_modules/nx/schemas/project-schema.json')).split(path.sep).join('/'),
     projectType: 'library',
     sourceRoot: toolPath,
     tags: [`ai:${host}`, `type:${type}`],
