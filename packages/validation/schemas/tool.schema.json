@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ai-dev-tools/schemas/tool.schema.json",
+  "title": "AI dev tool manifest",
+  "description": "Disclosure + policy metadata for a single tool (manifest/tool.json). The version is stamped from the authoritative package.json; do not hand-edit it.",
+  "type": "object",
+  "required": ["name", "type", "targets", "version", "license", "summary", "capabilities", "specSource", "specReviewedOn"],
+  "additionalProperties": true,
+  "properties": {
+    "name": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "type": { "enum": ["skill", "plugin", "hook", "agent", "rule", "prompt", "mcp"] },
+    "targets": { "type": "array", "minItems": 1, "items": { "enum": ["claude", "cursor", "codex"] } },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+" },
+    "license": { "type": "string" },
+    "summary": { "type": "string" },
+    "capabilities": {
+      "type": "object",
+      "required": ["filesystemRead", "filesystemWrite", "shell", "network", "git", "externalApis", "mcp", "credentials", "telemetry", "remoteContent"],
+      "additionalProperties": true,
+      "properties": {
+        "filesystemRead": { "type": "boolean" },
+        "filesystemWrite": { "type": "boolean" },
+        "shell": { "type": "boolean" },
+        "network": { "type": "boolean" },
+        "git": { "type": "boolean" },
+        "externalApis": { "type": "boolean" },
+        "mcp": { "type": "boolean" },
+        "credentials": { "type": "boolean" },
+        "telemetry": { "type": "boolean" },
+        "remoteContent": { "type": "boolean" }
+      }
+    },
+    "permissions": { "type": "array", "items": { "type": "string" } },
+    "sideEffects": { "type": "array", "items": { "type": "string" } },
+    "specSource": { "type": "string", "description": "Official spec/doc URL used for validation" },
+    "specReviewedOn": { "type": "string", "description": "ISO date the spec was last reviewed" }
+  }
+}

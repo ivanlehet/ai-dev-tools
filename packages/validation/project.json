@@ -1,0 +1,23 @@
+{
+  "name": "validation",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/validation/src",
+  "tags": ["scope:infra", "type:library"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --test",
+        "cwd": "packages/validation"
+      }
+    },
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node -e \"import('./src/index.mjs').then(m=>console.log('validation package self-check OK'))\"",
+        "cwd": "packages/validation"
+      }
+    }
+  }
+}

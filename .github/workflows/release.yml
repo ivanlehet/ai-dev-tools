@@ -1,0 +1,51 @@
+name: Release
+
+# Manual, human-gated. Defaults to a dry run — a real release requires an explicit
+# dispatch with dry_run=false. This workflow never pushes to a protected branch and
+# never publishes to an external registry; it versions tools, writes changelogs, and
+# (optionally) creates per-project GitHub releases from the version plans.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Preview only (no tags, no changelog commit, no GitHub release)"
+        type: boolean
+        default: true
+      projects:
+        description: "Optional comma-separated project filter (default: all releasable)"
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # Release gate: nothing ships unless every gate is green.
+      - name: Secret scan
+        run: npm run secret-scan
+      - name: Full verification
+        run: |
+          npx nx run-many -t validate test security-check policy-check package validate-package \
+            ${{ inputs.projects != '' && format('--projects={0}', inputs.projects) || '' }}
+
+      - name: Release (dry run)
+        if: ${{ inputs.dry_run }}
+        run: npx nx release --dry-run ${{ inputs.projects != '' && format('--projects={0}', inputs.projects) || '' }}
+
+      - name: Release (real — human authorized)
+        if: ${{ !inputs.dry_run }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx nx release --yes ${{ inputs.projects != '' && format('--projects={0}', inputs.projects) || '' }}

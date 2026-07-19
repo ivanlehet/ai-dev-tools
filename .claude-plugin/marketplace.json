@@ -1,0 +1,13 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "ai-dev-tools",
+  "description": "Ivan Lehet's AI development tools for Claude Code — plugins and skills, independently versioned.",
+  "owner": {
+    "name": "Ivan Lehet",
+    "email": "lehet.ivan@gmail.com"
+  },
+  "metadata": {
+    "pluginRoot": "."
+  },
+  "plugins": []
+}

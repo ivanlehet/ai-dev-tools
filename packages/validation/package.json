@@ -1,0 +1,15 @@
+{
+  "name": "@ai-dev-tools/validation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared, reusable validation infrastructure for every tool in the monorepo. Implements the automated checks defined in policy/rules.json (structure, version, disclosure, security, privacy, compliance, quality) with stable diagnostic codes and machine-readable output.",
+  "license": "MIT",
+  "main": "src/index.mjs",
+  "bin": {
+    "ai-dev-tools-validate": "src/cli.mjs"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

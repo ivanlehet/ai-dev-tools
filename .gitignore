@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Nx
+.nx/cache
+.nx/workspace-data
+
+# Build output
+dist/
+tmp/
+
+# Test / coverage
+coverage/
+
+# Editor / OS
+.DS_Store
+*.log
+.idea/
+.vscode/
+
+# Secrets — never commit (defense in depth; policy enforces too)
+.env
+.env.*
+!.env.example
+*.pem
+*.key

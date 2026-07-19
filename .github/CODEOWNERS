@@ -1,0 +1,10 @@
+# Default owner for everything. A human reviews and merges; automation never self-merges
+# to a protected branch.
+* @ivanlehet
+
+# Policy, validation infra, release config and CI are especially sensitive.
+/policy/            @ivanlehet
+/docs/POLICY.md     @ivanlehet
+/packages/validation/ @ivanlehet
+/nx.json            @ivanlehet
+/.github/           @ivanlehet

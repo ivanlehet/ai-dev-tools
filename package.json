@@ -1,0 +1,38 @@
+{
+  "name": "ai-dev-tools",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Nx monorepo hosting and independently versioning AI dev tools for Claude Code, Cursor, and OpenAI Codex.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "tools/*/*/*"
+  ],
+  "scripts": {
+    "format": "nx format:write",
+    "format:check": "nx format:check",
+    "lint": "nx run-many -t lint",
+    "typecheck": "nx run-many -t typecheck",
+    "validate": "nx run-many -t validate",
+    "test": "nx run-many -t test",
+    "security-check": "nx run-many -t security-check",
+    "privacy-check": "nx run-many -t privacy-check",
+    "policy-check": "nx run-many -t policy-check",
+    "package": "nx run-many -t package",
+    "validate-package": "nx run-many -t validate-package",
+    "verify": "nx run-many -t validate test security-check policy-check",
+    "affected": "nx affected -t lint typecheck validate test package validate-package security-check policy-check",
+    "secret-scan": "node scripts/secret-scan.mjs",
+    "create-tool": "node scripts/create-tool.mjs",
+    "create-version-plan": "nx release plan",
+    "check-version-plans": "nx release plan:check",
+    "release:dry-run": "nx release --dry-run",
+    "release": "nx release"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@nx/js": "^23.1.0",
+    "nx": "^23.1.0"
+  }
+}

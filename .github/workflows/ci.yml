@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: nrwl/nx-set-shas@v4
+
+      # Repo-wide gates (independent of which tools changed).
+      - name: Secret scan (repo-wide)
+        run: npm run secret-scan
+      - name: Validation infra tests
+        run: npx nx test validation
+      - name: Version plan check
+        run: npx nx release plan:check || echo "no releasable changes / no plan required"
+
+      # Per-tool gates on changed tools only — a broken tool never fails the others.
+      - name: Affected gates
+        run: npx nx affected -t validate test security-check policy-check package validate-package
+
+  cross-platform:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Exercises generate -> package -> validate-package on every OS, and
+      # install/verify-install/uninstall on macOS/Linux (bash steps self-skip on Windows).
+      - name: Lifecycle e2e
+        run: npx nx test validation
