@@ -4,7 +4,7 @@
   "description": "Ivan Lehet's AI development tools for Claude Code — plugins and skills, independently versioned.",
   "owner": {
     "name": "Ivan Lehet",
-    "email": "lehet.ivan@gmail.com"
+    "url": "https://github.com/ivanlehet"
   },
   "metadata": {
     "pluginRoot": "."
