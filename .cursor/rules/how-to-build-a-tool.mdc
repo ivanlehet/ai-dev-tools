@@ -1,0 +1,21 @@
+---
+description: How to create or change a tool in the ai-dev-tools monorepo
+alwaysApply: true
+---
+
+# Building a tool in ai-dev-tools
+
+Follow [`AGENTS.md`](../../AGENTS.md) — the canonical, cross-agent guide.
+
+Key rules:
+
+- Create a tool with `npm run create-tool` — **never hand-scaffold**. It handles placement
+  (1 host → `tools/<host>/<type>/`, 2+ → `tools/portable/<type>/`), the full lifecycle, and
+  input validation.
+- After generating: complete `manifest/tool.json` disclosure and **honestly** attest
+  `SECURITY-CHECKLIST.md`.
+- Only claim a target host in `targets` after its validation + fixture pass.
+- Before a PR: `npm run verify` and `npm run secret-scan` green; a human reviews and merges.
+
+Enforced policy: `docs/POLICY.md`. No lifecycle command may report success without doing the
+work it claims; no secrets; no install-time `curl | bash`.
