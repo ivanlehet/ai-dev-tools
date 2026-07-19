@@ -68,8 +68,10 @@ jobs:
         run: npx nx test validation
 
   commitlint:
-    # Conventional Commits are validated on the PR range only.
-    if: github.event_name == 'pull_request'
+    # Conventional Commits are validated on the PR range only. Skipped for Dependabot,
+    # whose machine-generated "Bump ..." subjects intentionally use sentence-case and are
+    # trusted; enforcing subject-case on them would block every dependency PR.
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
