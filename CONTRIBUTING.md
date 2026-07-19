@@ -9,6 +9,20 @@
 - A human reviews and merges. Automation never self-merges to a protected branch, force-pushes,
   or rewrites history.
 
+## Branching & workflow
+
+Trunk-based, no long-lived integration branch. `master` is the single protected trunk;
+`nx affected` isolates change impact and per-tool tags (`<tool>@x.y.z`) handle release
+independence, so there is no `develop`/`integration` branch to batch through.
+
+1. Branch short-lived off `master`: `git switch -c tool/<name>/<change>` (or `fix/…`, `chore/…`).
+2. Work, keep the gates green, open a PR against `master`. Delete the branch after merge.
+3. A human reviews and merges — never push directly to `master`, force-push, or self-merge.
+
+Release happens after merge, per tool, run by a human: `nx release --projects=<tool>`
+(never from CI on a PR). Version intent accumulates on `master` as Version Plans and is
+consumed at release time.
+
 ## Add a tool
 
 ```bash
