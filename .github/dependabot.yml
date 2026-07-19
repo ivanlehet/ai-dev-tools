@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # Keep the pinned GitHub Actions (by commit SHA) current with security patches.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+    labels:
+      - dependencies
+      - github-actions
+
+  # Root npm workspace (nx, commitlint, and tooling devDependencies).
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+    labels:
+      - dependencies
+    open-pull-requests-limit: 5

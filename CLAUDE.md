@@ -16,3 +16,7 @@ The essentials:
   and `/review`.
 - Enforced policy in [`docs/POLICY.md`](docs/POLICY.md): no command fakes success, no secrets,
   no `curl | bash`, a human merges.
+- `master` is a protected trunk: **no direct push / force-push / deletion**, contributors work
+  from a **fork**, and every change lands via a PR that passes the full CI (`ci-success` +
+  `CodeQL`) and a code review, then **squash-merges** and auto-deletes the branch. See
+  [`AGENTS.md`](AGENTS.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md#branch-protection).

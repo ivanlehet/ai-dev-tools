@@ -34,6 +34,20 @@ deterministic generator, not in prose.
 - Never weaken a repository-wide gate for one tool. Leave incomplete work visibly incomplete.
 - A human reviews and merges. Do not push to a protected branch, force-push, or self-merge.
 
+## Branch protection & contribution flow
+
+`master` is the protected production trunk, enforced by a GitHub ruleset:
+
+- **No direct pushes, no force-pushes, no deletion** — for everyone, including the maintainer.
+- Every change lands via a **pull request** that must pass the **full CI pipeline** (the
+  aggregate `ci-success` gate + `CodeQL` code scanning) and a **code review** (1 approval +
+  code owner). Branches must be up to date; conversations resolved.
+- **Squash merge only**; the branch is auto-deleted after merge.
+
+Contributors do not have write access — **work from a fork** and open a PR against
+`master`. Never push directly, force-push, or self-merge. See
+[`CONTRIBUTING.md`](CONTRIBUTING.md#branch-protection).
+
 ## Before opening a PR
 
 ```bash
