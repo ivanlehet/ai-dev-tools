@@ -12,10 +12,9 @@
 //
 // It never touches unrelated user files, never removes another tool's resources, and supports
 // --dry-run to preview every change.
-import { existsSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { basename, dirname, isAbsolute, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { existsSync, lstatSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, isAbsolute, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { assertSupportedNode, detectPlatform, removeContinuityHookEntries, BLOCK_RE } from './install.mjs';
 
 const RUNTIME_DIRNAME = '.agent-continuity';
