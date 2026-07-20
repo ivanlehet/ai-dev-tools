@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { chmodSync, copyFileSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, platform, release, arch } from 'node:os';
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const VERSION = '1.0.7';
@@ -15,7 +15,7 @@ function now() { return new Date().toISOString(); }
 function isObject(value) { return value !== null && typeof value === 'object' && !Array.isArray(value); }
 function readText(path) { return readFileSync(path, 'utf8'); }
 function ensureDir(path) { mkdirSync(path, { recursive: true }); }
-function safeChmod(path, mode) { if (process.platform !== 'win32') { try { chmodSync(path, mode); } catch {} } }
+function safeChmod(path, mode) { if (process.platform !== 'win32') { try { chmodSync(path, mode); } catch { /* best-effort: ignore */ } } }
 function pathExists(path) { try { lstatSync(path); return true; } catch { return false; } }
 
 export function assertSupportedNode({ allowNonLts = false } = {}) {
@@ -206,7 +206,7 @@ export function cursorHookConfig(command) {
 function installDirectory(source, destination, { linkMode, host, backups, dryRun, backupRoot = null }) {
   let selected = linkMode === 'auto' ? (host.is_windows ? 'copy' : 'symlink') : linkMode;
   if (selected === 'symlink' && pathExists(destination)) {
-    try { if (lstatSync(destination).isSymbolicLink() && resolve(dirname(destination), readlinkSync(destination)) === resolve(source)) { console.log(`unchanged: ${destination}`); return 'symlink'; } } catch {}
+    try { if (lstatSync(destination).isSymbolicLink() && resolve(dirname(destination), readlinkSync(destination)) === resolve(source)) { console.log(`unchanged: ${destination}`); return 'symlink'; } } catch { /* best-effort: ignore */ }
   }
   if (dryRun) { console.log(`would install (${selected}): ${destination} -> ${source}`); return selected; }
   ensureDir(dirname(destination));
@@ -217,7 +217,7 @@ function installDirectory(source, destination, { linkMode, host, backups, dryRun
   }
   if (selected === 'symlink') {
     try { symlinkSync(source, destination, 'dir'); console.log(`linked: ${destination} -> ${source}`); return 'symlink'; }
-    catch (error) { if (linkMode === 'symlink') throw new Error(`Unable to create symlink ${destination}: ${error.message}`); selected = 'copy'; console.log(`symlink unavailable; falling back to copy: ${destination}`); }
+    catch (error) { if (linkMode === 'symlink') throw new Error(`Unable to create symlink ${destination}: ${error.message}`, { cause: error }); console.log(`symlink unavailable; falling back to copy: ${destination}`); }
   }
   cpSync(source, destination, { recursive: true, filter: src => !/(^|[\\/])(?:\.git|node_modules)(?:[\\/]|$)|(?:\.zip|\.DS_Store)$/.test(src) });
   console.log(`copied: ${destination}`);
