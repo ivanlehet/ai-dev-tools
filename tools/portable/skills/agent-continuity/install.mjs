@@ -15,7 +15,8 @@ function now() { return new Date().toISOString(); }
 function isObject(value) { return value !== null && typeof value === 'object' && !Array.isArray(value); }
 function readText(path) { return readFileSync(path, 'utf8'); }
 function ensureDir(path) { mkdirSync(path, { recursive: true }); }
-function safeChmod(path, mode) { if (process.platform !== 'win32') { try { chmodSync(path, mode); } catch { /* best-effort: ignore */ } } }
+function debug(scope, error) { if (process.env.AGENT_CONTINUITY_DEBUG) process.stderr.write(`agent-continuity: ${scope}: ${error?.message ?? error}\n`); }
+function safeChmod(path, mode) { if (process.platform !== 'win32') { try { chmodSync(path, mode); } catch (error) { debug('chmod', error); } } }
 function pathExists(path) { try { lstatSync(path); return true; } catch { return false; } }
 
 export function assertSupportedNode({ allowNonLts = false } = {}) {
@@ -206,7 +207,7 @@ export function cursorHookConfig(command) {
 function installDirectory(source, destination, { linkMode, host, backups, dryRun, backupRoot = null }) {
   let selected = linkMode === 'auto' ? (host.is_windows ? 'copy' : 'symlink') : linkMode;
   if (selected === 'symlink' && pathExists(destination)) {
-    try { if (lstatSync(destination).isSymbolicLink() && resolve(dirname(destination), readlinkSync(destination)) === resolve(source)) { console.log(`unchanged: ${destination}`); return 'symlink'; } } catch { /* best-effort: ignore */ }
+    try { if (lstatSync(destination).isSymbolicLink() && resolve(dirname(destination), readlinkSync(destination)) === resolve(source)) { console.log(`unchanged: ${destination}`); return 'symlink'; } } catch (error) { debug('symlink-check', error); }
   }
   if (dryRun) { console.log(`would install (${selected}): ${destination} -> ${source}`); return selected; }
   ensureDir(dirname(destination));
