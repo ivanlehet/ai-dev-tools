@@ -6,8 +6,11 @@
   Read [`docs/POLICY.md`](docs/POLICY.md); it is enforced, not advisory.
 - Never compromise correctness, security, privacy, or honesty for speed. No lifecycle command
   may report success without doing the work it claims.
-- A human reviews and merges. Automation never self-merges to a protected branch, force-pushes,
-  or rewrites history.
+- A human reviews and merges. Automation (including AI agents acting on the maintainer's
+  credentials) never merges to a protected branch, force-pushes, or rewrites history — it
+  prepares the PR and stops there. Merging into `master` is always a manual action the maintainer
+  takes in the GitHub UI, never a CLI/API call run on the maintainer's behalf, and never GitHub's
+  native auto-merge (disabled repo-wide; see [Branch protection](#branch-protection)).
 
 ## Branching & workflow
 
@@ -48,12 +51,18 @@ consumed at release time.
 - **Squash merge only**, linear history.
 - No force-pushes and no branch deletion.
 
-**Only the maintainer can merge.** Merging requires write access to this repository, and the
-maintainer is its only collaborator — external contributors work from forks and therefore cannot
-merge, regardless of CI status. A separate approving review is *not* required: GitHub does not let
-a solo author approve their own PR, so the enforced controls are the green CI gate plus
-maintainer-only merge rights. (`.github/CODEOWNERS` still auto-requests the maintainer as reviewer
-as a courtesy, but review is not a merge gate.)
+**Only the maintainer can merge, and only by hand.** Merging requires write access to this
+repository, and the maintainer is its only collaborator — external contributors work from forks
+and therefore cannot merge, regardless of CI status. A separate approving review is *not*
+required: GitHub does not let a solo author approve their own PR, so the enforced controls are the
+green CI gate plus maintainer-only merge rights. (`.github/CODEOWNERS` still auto-requests the
+maintainer as reviewer as a courtesy, but review is not a merge gate.)
+
+Merging is never automatic, even once every check is green: the repository's **"Allow
+auto-merge"** setting is turned off, so GitHub's native auto-merge cannot be queued on any PR, and
+no automation (including AI coding agents) is permitted to run the merge itself — the maintainer
+always clicks merge in the GitHub UI. This is a deliberate, human-in-the-loop gate, not an
+oversight.
 
 ## Add a tool
 

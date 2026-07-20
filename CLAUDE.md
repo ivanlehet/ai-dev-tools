@@ -15,8 +15,9 @@ The essentials:
 - Before a PR: `npm run verify` and `npm run secret-scan` must be green; then `/security-review`
   and `/review`.
 - Enforced policy in [`docs/POLICY.md`](docs/POLICY.md): no command fakes success, no secrets,
-  no `curl | bash`, a human merges.
+  no `curl | bash`, a human merges — never the agent, never auto-merge.
 - `master` is a protected trunk: **no direct push / force-push / deletion**, contributors work
   from a **fork**, and every change lands via a PR that passes the full CI (`ci-success` +
-  `CodeQL`) and a code review, then **squash-merges** and auto-deletes the branch. See
-  [`AGENTS.md`](AGENTS.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md#branch-protection).
+  `CodeQL`), after which the maintainer **manually squash-merges** in the GitHub UI (repo-level
+  auto-merge is disabled, and no agent may run the merge itself); the branch auto-deletes after.
+  See [`AGENTS.md`](AGENTS.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md#branch-protection).
