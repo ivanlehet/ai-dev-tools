@@ -6,8 +6,12 @@
   Read [`docs/POLICY.md`](docs/POLICY.md); it is enforced, not advisory.
 - Never compromise correctness, security, privacy, or honesty for speed. No lifecycle command
   may report success without doing the work it claims.
-- A human reviews and merges. Automation never self-merges to a protected branch, force-pushes,
-  or rewrites history.
+- A human reviews and merges — only the maintainer or a contributor explicitly granted write
+  access (an approved contributor). Automation (including AI agents acting on anyone's
+  credentials) never merges to a protected branch, force-pushes, or rewrites history — it
+  prepares the PR and stops there. Merging into `master` is always a manual action taken by hand
+  in the GitHub UI, never a CLI/API call run on someone's behalf, and never GitHub's native
+  auto-merge (disabled repo-wide; see [Branch protection](#branch-protection)).
 
 ## Branching & workflow
 
@@ -19,15 +23,16 @@ independence, so there is no `develop`/`integration` branch to batch through.
 linear history, and every change must arrive through a pull request that passes the **full CI
 pipeline** before the maintainer merges it (see [Branch protection](#branch-protection)).
 
-**Contributors work from a fork** (nobody but the maintainer has write access):
+**Contributors work from a fork** (nobody but the maintainer and any contributor the maintainer
+has explicitly granted write access to — an **approved contributor** — has write access):
 
 1. Fork the repository and clone your fork.
 2. Create a short-lived topic branch: `git switch -c tool/<name>/<change>` (or `fix/…`,
    `chore/…`).
 3. Work, keep the gates green (`npm run verify`, `npm run secret-scan`), and push to your fork.
 4. Open a pull request against `ivanlehet/ai-dev-tools:master`.
-5. CI must be green before merge. The maintainer merges with **squash & merge**; the branch is
-   deleted automatically after merge.
+5. CI must be green before merge. The maintainer, or an approved contributor, merges by hand with
+   **squash & merge**; the branch is deleted automatically after merge.
 
 Never attempt to push directly to `master`, force-push, or delete it — the ruleset rejects it for
 everyone.
@@ -48,12 +53,21 @@ consumed at release time.
 - **Squash merge only**, linear history.
 - No force-pushes and no branch deletion.
 
-**Only the maintainer can merge.** Merging requires write access to this repository, and the
-maintainer is its only collaborator — external contributors work from forks and therefore cannot
-merge, regardless of CI status. A separate approving review is *not* required: GitHub does not let
-a solo author approve their own PR, so the enforced controls are the green CI gate plus
-maintainer-only merge rights. (`.github/CODEOWNERS` still auto-requests the maintainer as reviewer
-as a courtesy, but review is not a merge gate.)
+**Only the maintainer or an approved contributor can merge, and only by hand.** Merging requires
+write access to this repository. Today the maintainer is the only collaborator; if the maintainer
+later grants write access to a specific, trusted contributor, that person can merge too — under
+the exact same rules. Everyone else works from a fork and cannot merge, regardless of CI status.
+No agent, bot, or other automation is ever granted write access or permitted to merge on anyone's
+behalf. A separate approving review is *not* required: GitHub does not let a solo author approve
+their own PR, so the enforced controls are the green CI gate plus write-access-gated merge rights.
+(`.github/CODEOWNERS` still auto-requests the maintainer as reviewer as a courtesy, but review is
+not a merge gate.)
+
+Merging is never automatic, even once every check is green: the repository's **"Allow
+auto-merge"** setting is turned off, so GitHub's native auto-merge cannot be queued on any PR, and
+no automation (including AI coding agents) is ever permitted to run the merge itself — only the
+maintainer or an approved contributor, clicking merge by hand in the GitHub UI. This is a
+deliberate, human-in-the-loop gate, not an oversight.
 
 ## Add a tool
 
