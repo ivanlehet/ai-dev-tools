@@ -1,0 +1,39 @@
+{
+  "name": "agent-continuity",
+  "type": "skill",
+  "targets": [
+    "claude",
+    "cursor",
+    "codex"
+  ],
+  "version": "1.0.7",
+  "license": "MIT",
+  "summary": "Provider-neutral coding task continuity across Claude Code, Codex, and Cursor.",
+  "capabilities": {
+    "filesystemRead": true,
+    "filesystemWrite": true,
+    "shell": true,
+    "network": false,
+    "git": true,
+    "externalApis": false,
+    "mcp": false,
+    "credentials": false,
+    "telemetry": false,
+    "remoteContent": false
+  },
+  "permissions": [
+    "Read and write its own runtime under ~/.agent-continuity (config, launchers, state, provider skill copies).",
+    "Read and merge provider config: ~/.claude/settings.json, ~/.codex/hooks.json, ~/.cursor/hooks.json (backed up before change; only Agent Continuity entries are touched).",
+    "Run git to read repository/worktree/branch/HEAD/status; never mutates history.",
+    "Write continuity files inside the repository: <git-common-dir>/agent-continuity/, a managed block in CLAUDE.md/AGENTS.md, and .cursor/rules/agent-continuity.mdc.",
+    "Query provider-local quota probes (Claude status-line cache, Codex local app-server, Cursor hook fields) without contacting external endpoints or reading credentials."
+  ],
+  "sideEffects": [
+    "Creates the ~/.agent-continuity runtime, Node launchers, and per-provider skill copies.",
+    "Merges (does not replace) provider hook config and the Claude status line, creating backups first.",
+    "Appends/updates a managed continuity block in the repository's CLAUDE.md and AGENTS.md and writes .cursor/rules/agent-continuity.mdc.",
+    "Spawns git and provider-local processes; performs no reset/clean/stash/rebase/merge/push or worktree deletion."
+  ],
+  "specSource": "https://code.claude.com/docs/en/skills.md",
+  "specReviewedOn": "2026-07-19"
+}

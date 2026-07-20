@@ -1,0 +1,79 @@
+{
+  "name": "agent-continuity",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/portable/skills/agent-continuity",
+  "tags": [
+    "ai:portable",
+    "type:skill"
+  ],
+  "targets": {
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/validation/src/cli.mjs validate tools/portable/skills/agent-continuity"
+      }
+    },
+    "security-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/validation/src/cli.mjs security tools/portable/skills/agent-continuity"
+      }
+    },
+    "privacy-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/validation/src/cli.mjs privacy tools/portable/skills/agent-continuity"
+      }
+    },
+    "policy-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/validation/src/cli.mjs policy tools/portable/skills/agent-continuity"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --test",
+        "cwd": "tools/portable/skills/agent-continuity"
+      }
+    },
+    "package": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{workspaceRoot}/dist/tools/agent-continuity"
+      ],
+      "options": {
+        "command": "node scripts/package-tool.mjs tools/portable/skills/agent-continuity dist/tools/agent-continuity"
+      }
+    },
+    "validate-package": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "package"
+      ],
+      "options": {
+        "command": "node scripts/validate-package.mjs dist/tools/agent-continuity"
+      }
+    },
+    "install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash tools/portable/skills/agent-continuity/install.sh --global-only --providers claude,codex,cursor"
+      }
+    },
+    "uninstall": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash tools/portable/skills/agent-continuity/uninstall.sh --providers claude,codex,cursor"
+      }
+    },
+    "verify-install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash tools/portable/skills/agent-continuity/validate.sh --verify-install"
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "agent-continuity",
+  "displayName": "Agent Continuity",
+  "version": "1.0.7",
+  "description": "Bidirectional task, worktree, session, and quota continuity across Claude Code, Codex, and Cursor.",
+  "keywords": [
+    "continuity",
+    "handoff",
+    "worktree",
+    "sessions",
+    "claude-code",
+    "codex",
+    "cursor"
+  ],
+  "author": {
+    "name": "Ivan Lehet"
+  },
+  "license": "MIT"
+}

@@ -2,7 +2,7 @@
 // Each returns a map { relativePath: contents }. The generator writes them atomically.
 
 export const TYPE_RULES = {
-  skill: { dir: 'skills', hosts: ['claude', 'codex'], multi: true, spec: 'https://code.claude.com/docs/en/skills.md' },
+  skill: { dir: 'skills', hosts: ['claude', 'codex', 'cursor'], multi: true, spec: 'https://code.claude.com/docs/en/skills.md' },
   plugin: { dir: 'plugins', hosts: ['claude'], multi: false, spec: 'https://code.claude.com/docs/en/plugins-reference.md' },
   hook: { dir: 'hooks', hosts: ['claude'], multi: false, spec: 'https://code.claude.com/docs/en/hooks.md' },
   agent: { dir: 'agents', hosts: ['claude'], multi: false, spec: 'https://code.claude.com/docs/en/sub-agents.md' },
