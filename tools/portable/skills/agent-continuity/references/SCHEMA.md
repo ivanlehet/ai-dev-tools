@@ -32,6 +32,20 @@ portable/tasks/<task-id>/
 
 `state.json` includes stable task identity, status, objective, acceptance criteria, exact next action, branch, worktree, HEAD, upstream, dirty state, provider-run references, latest snapshot, and timestamps.
 
+### Task status
+
+Allowed status values:
+
+```text
+planned | in_progress | blocked | ready_for_review | completed | abandoned
+```
+
+The active statuses (included in `list`, `snapshot-all`, and `export`) are `planned`, `in_progress`, `blocked`, and `ready_for_review`. The terminal statuses `completed`, `abandoned`, and `cancelled` are not active.
+
+`in_review` (and `review`) is accepted as an alias for `ready_for_review`. It is normalized to `ready_for_review` whenever status is persisted to the registry, so a task written as `in_review` by an agent still appears in exports and handoffs.
+
+A task's recorded `worktree`/`branch` express ownership and are not overwritten by a hook running from a different checkout; a divergent observation is recorded under `observed_worktree_mismatch` instead.
+
 ## Repository private provider map
 
 ```text

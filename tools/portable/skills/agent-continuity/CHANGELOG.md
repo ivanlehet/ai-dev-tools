@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.8
+
+- Treat `in_review` (and `review`) as an alias for `ready_for_review` so real tasks are no longer dropped from `export`, `list`, and `snapshot-all` (#20).
+- Refuse `export` / `export-global` when only provisional `run-*` placeholders remain or no task has a complete semantic handoff, instead of writing a success-looking bundle. Incomplete provisional tasks are excluded from the bundle.
+- Preserve a task's recorded worktree/branch ownership instead of overwriting it from the current hook's checkout; a divergent checkout is recorded as `observed_worktree_mismatch` (#20).
+- Always refresh `.agent-continuity-location.json` and verify the `.agent-continuity` symlink so `continuity_root` never drifts from the git-common-dir base; `doctor` now checks locator ↔ base consistency (#20).
+- Added runtime and smoke regression tests covering the export/handoff behavior.
+
 ## 1.0.7
 
 - Added the standard nested Claude Code skill entrypoint while retaining the root skill for cross-provider compatibility.

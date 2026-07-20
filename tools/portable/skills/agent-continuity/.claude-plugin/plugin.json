@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agent-continuity",
   "displayName": "Agent Continuity",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Bidirectional task, worktree, session, and quota continuity across Claude Code, Codex, and Cursor.",
   "keywords": [
     "continuity",
