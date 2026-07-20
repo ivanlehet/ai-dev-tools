@@ -10,6 +10,9 @@ on:
     branches: [master]
   schedule:
     - cron: "27 4 * * 1"
+  # Additive manual trigger so the CI-repair automation can re-run CodeQL at the
+  # fixed-up commit. No inputs; changes no required-check names or existing behavior.
+  workflow_dispatch:
 
 permissions:
   contents: read
