@@ -6,11 +6,12 @@
   Read [`docs/POLICY.md`](docs/POLICY.md); it is enforced, not advisory.
 - Never compromise correctness, security, privacy, or honesty for speed. No lifecycle command
   may report success without doing the work it claims.
-- A human reviews and merges. Automation (including AI agents acting on the maintainer's
+- A human reviews and merges — only the maintainer or a contributor explicitly granted write
+  access (an approved contributor). Automation (including AI agents acting on anyone's
   credentials) never merges to a protected branch, force-pushes, or rewrites history — it
-  prepares the PR and stops there. Merging into `master` is always a manual action the maintainer
-  takes in the GitHub UI, never a CLI/API call run on the maintainer's behalf, and never GitHub's
-  native auto-merge (disabled repo-wide; see [Branch protection](#branch-protection)).
+  prepares the PR and stops there. Merging into `master` is always a manual action taken by hand
+  in the GitHub UI, never a CLI/API call run on someone's behalf, and never GitHub's native
+  auto-merge (disabled repo-wide; see [Branch protection](#branch-protection)).
 
 ## Branching & workflow
 

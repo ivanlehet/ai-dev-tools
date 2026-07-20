@@ -30,7 +30,9 @@ released without satisfying them:
 3. **CI** — `nx affected` for changed tools plus a repo-wide policy/security lint, secret scan,
    and version-plan check. CI never publishes from a pull request.
 4. **Review** — `/security-review` and `/review` before a PR; confirmed blocking findings are
-   fixed before merge. A human merges.
+   fixed before merge. A human merges by hand — only the maintainer or a contributor explicitly
+   granted write access (an approved contributor); no agent, bot, or auto-merge ever merges
+   (see [`CONTRIBUTING.md`](../CONTRIBUTING.md#branch-protection)).
 5. **Release** — validate → test → security/privacy/policy → package → validate-package →
    checksum → preview. Any failure blocks the release; nothing is published.
 
