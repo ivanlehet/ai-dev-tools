@@ -32,10 +32,11 @@ deterministic generator, not in prose.
 - No lifecycle command may report success without doing the work it claims.
 - No secrets, no `.env` values, no install-time remote code execution (`curl | bash`).
 - Never weaken a repository-wide gate for one tool. Leave incomplete work visibly incomplete.
-- A human reviews and merges. **No agent ever runs the merge itself** — not `gh pr merge`, not the
-  API, not GitHub's auto-merge, regardless of whose PR it is or whether CI/review already passed.
-  Prepare the PR and stop; the maintainer clicks merge by hand in the GitHub UI. Do not push to a
-  protected branch or force-push either.
+- A human reviews and merges — only the maintainer or a contributor explicitly granted write
+  access ("approved contributor"). **No agent ever runs the merge itself** — not `gh pr merge`,
+  not the API, not GitHub's auto-merge, regardless of whose PR it is or whether CI/review already
+  passed. Prepare the PR and stop; a human with write access clicks merge by hand in the GitHub
+  UI. Do not push to a protected branch or force-push either.
 
 ## Branch protection & contribution flow
 
@@ -46,11 +47,13 @@ deterministic generator, not in prose.
   aggregate `ci-success` gate + `CodeQL` code scanning). Branches must be up to date.
 - **Squash merge only**; the branch is auto-deleted after merge.
 - **Merging is manual, always.** GitHub's repo-level auto-merge is disabled; nothing merges to
-  `master` without the maintainer manually clicking merge, no matter how green the checks are.
+  `master` without a human with write access manually clicking merge, no matter how green the
+  checks are.
 
-Contributors do not have write access — **work from a fork** and open a PR against
-`master`. Never push directly, force-push, or merge — that includes agents acting on the
-maintainer's behalf. See [`CONTRIBUTING.md`](CONTRIBUTING.md#branch-protection).
+Only the maintainer and any contributor the maintainer has explicitly granted write access to can
+merge. Everyone else does not have write access — **work from a fork** and open a PR against
+`master`. Never push directly, force-push, or merge — that includes agents acting on anyone's
+behalf. See [`CONTRIBUTING.md`](CONTRIBUTING.md#branch-protection).
 
 ## Before opening a PR
 
