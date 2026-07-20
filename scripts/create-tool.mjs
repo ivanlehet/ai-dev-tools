@@ -105,7 +105,7 @@ function lifecycleProjectJson({ name, type, targets, toolPath }) {
 }
 
 // ---- shell scripts (self-contained, bundled with the artifact) --------------
-const SOURCE_DETECT = `SCRIPT_DIR="$(cd "$(dirname "\$0")" && pwd)"
+const SOURCE_DETECT = `SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ -f "$SCRIPT_DIR/lib/detect-platform.sh" ]; then . "$SCRIPT_DIR/lib/detect-platform.sh"
 elif [ -f "$SCRIPT_DIR/../../../../scripts/lib/detect-platform.sh" ]; then . "$SCRIPT_DIR/../../../../scripts/lib/detect-platform.sh"
 else echo "detect-platform.sh not found" >&2; exit 1; fi`;
