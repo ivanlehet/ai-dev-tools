@@ -23,7 +23,7 @@ VALIDATE_ARGS=()
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --verify-install) MODE="verify-install"; shift ;;
-    --host) shift 2 ;;
+    --host) shift 2 2>/dev/null || shift ;;
     --host=*) shift ;;
     *) VALIDATE_ARGS+=("$1"); shift ;;
   esac

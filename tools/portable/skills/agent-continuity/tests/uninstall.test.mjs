@@ -25,7 +25,9 @@ test('uninstall removes owned artifacts, restores the status line, and keeps for
 
     // Simulate a prior install.
     writeJson(join(runtime, 'config.json'), { original_claude_status_line: { type: 'command', command: '/custom/statusline', padding: 2 } });
-    writeJson(join(runtime, 'install-manifest.json'), { providers: ['claude'], installations: { claude: skill } });
+    // Mirror what install.mjs actually records: installations[provider] is the link MODE,
+    // not a path. The uninstaller must resolve the real skill location itself.
+    writeJson(join(runtime, 'install-manifest.json'), { providers: ['claude'], installations: { claude: 'copy' } });
     mkdirSync(join(runtime, 'bin'), { recursive: true });
     writeFileSync(join(runtime, 'bin', 'agent-continuity.mjs'), 'x');
     mkdirSync(skill, { recursive: true });
@@ -57,7 +59,7 @@ test('dry-run reports changes without removing anything', () => {
     const home = join(base, 'home');
     const runtime = join(home, '.agent-continuity');
     const skill = join(home, '.cursor', 'skills', 'agent-continuity');
-    writeJson(join(runtime, 'install-manifest.json'), { providers: ['cursor'], installations: { cursor: skill } });
+    writeJson(join(runtime, 'install-manifest.json'), { providers: ['cursor'], installations: { cursor: 'symlink' } });
     mkdirSync(skill, { recursive: true });
     writeFileSync(join(skill, 'SKILL.md'), 'x');
 

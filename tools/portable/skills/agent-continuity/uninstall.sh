@@ -20,7 +20,7 @@ ac_print_environment
 UNINSTALL_ARGS=()
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --host) shift 2 ;;
+    --host) shift 2 2>/dev/null || shift ;;
     --host=*) shift ;;
     *) UNINSTALL_ARGS+=("$1"); shift ;;
   esac

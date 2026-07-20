@@ -14,7 +14,7 @@
 // --dry-run to preview every change.
 import { existsSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { assertSupportedNode, detectPlatform, removeContinuityHookEntries, BLOCK_RE } from './install.mjs';
 
@@ -139,9 +139,13 @@ export function main(argv = process.argv.slice(2)) {
     codex: join(home, '.agents', 'skills', OWNED_LEAF),
     cursor: join(home, '.cursor', 'skills', OWNED_LEAF),
   };
+  // install.mjs records installations[provider] as the link MODE ("copy"/"symlink"),
+  // not a filesystem path — so only trust it when it is an absolute path, otherwise use the
+  // known per-provider skill location. (Trusting the mode string would no-op and orphan the copy.)
   for (const provider of providers) {
     const recorded = manifest.installations?.[provider];
-    removeOwnedPath(typeof recorded === 'string' ? recorded : skillTargets[provider], opts);
+    const target = typeof recorded === 'string' && isAbsolute(recorded) ? recorded : skillTargets[provider];
+    removeOwnedPath(target, opts);
   }
 
   if (providers.has('claude')) cleanClaude(home, config.original_claude_status_line, opts);
@@ -150,8 +154,12 @@ export function main(argv = process.argv.slice(2)) {
 
   if (args.repo) cleanRepo(args.repo, opts);
 
-  // Remove the runtime last: it holds the config/manifest read above.
-  removeRuntime(runtime, opts);
+  // Remove the shared runtime last (it holds the config/manifest read above), and ONLY when
+  // this uninstall covers every installed provider. A partial (--providers subset) uninstall
+  // must keep the runtime so a later run can still restore the saved Claude status line.
+  const removingAll = installedProviders.every((p) => providers.has(p === 'claude-code' ? 'claude' : p));
+  if (removingAll) removeRuntime(runtime, opts);
+  else console.log(`kept runtime (partial uninstall): ${runtime}`);
 
   console.log(`\n${args.dryRun ? 'Planned uninstall of' : 'Uninstalled'} Agent Continuity for: ${[...providers].sort().join(', ')}.`);
   if (!args.repo) console.log('Repository continuity files were left in place. Re-run with --repo <path> to remove them.');
