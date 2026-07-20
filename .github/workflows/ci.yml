@@ -4,6 +4,10 @@ on:
   pull_request:
   push:
     branches: [master]
+  # Additive manual trigger so the CI-repair automation can start a fresh run at
+  # the fixed-up commit (a GITHUB_TOKEN push does not self-retrigger checks).
+  # No inputs; changes no required-check names or existing behavior.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -35,6 +39,8 @@ jobs:
         run: npm run secret-scan
       - name: Validation infra tests
         run: npx nx test validation
+      - name: CI-repair guard unit tests
+        run: node --test .github/scripts/ci-repair/*.test.mjs
       - name: Version plan check
         run: npx nx release plan:check || echo "no releasable changes / no plan required"
 
@@ -68,10 +74,15 @@ jobs:
         run: npx nx test validation
 
   commitlint:
-    # Conventional Commits are validated on the PR range only. Skipped for Dependabot,
+    # Conventional Commits are validated on the PR range, and also on a
+    # workflow_dispatch re-run (used by the CI-repair automation, whose
+    # GITHUB_TOKEN push does not re-fire pull_request) so the aggregate check keeps
+    # covering commit messages at the re-triggered head. Skipped for Dependabot,
     # whose machine-generated "Bump ..." subjects intentionally use sentence-case and are
     # trusted; enforcing subject-case on them would block every dependency PR.
-    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    if: >-
+      (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]')
+      || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -86,7 +97,19 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Validate commit messages
-        run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            # No PR context on a manual/automation re-run: validate the range from
+            # the default branch to the dispatched head.
+            git fetch origin master:refs/remotes/origin/master
+            npx commitlint --from origin/master --to HEAD --verbose
+          else
+            npx commitlint --from "$PR_BASE_SHA" --to "$PR_HEAD_SHA" --verbose
+          fi
 
   # Single stable required status check. Aggregates every CI job so the branch
   # ruleset never has to reference volatile matrix job names.
