@@ -60,7 +60,7 @@ export const SECRET_PATTERNS = [
   { id: 'aws-access-key', re: /\bAKIA[0-9A-Z]{16}\b/ },
   { id: 'github-token', re: /\bgh[pousr]_[A-Za-z0-9]{20,}\b/ },
   { id: 'slack-token', re: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/ },
-  { id: 'google-api-key', re: /\bAIza[0-9A-Za-z_\-]{35}\b/ },
+  { id: 'google-api-key', re: /\bAIza[0-9A-Za-z_-]{35}\b/ },
   { id: 'generic-assignment', re: /\b(?:api[_-]?key|secret|password|passwd|token)\b\s*[:=]\s*['"][^'"\s]{8,}['"]/i },
 ];
 

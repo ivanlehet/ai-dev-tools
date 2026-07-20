@@ -1,6 +1,5 @@
 // Orchestrates the tool checks and enriches findings with severity/blocking from policy.
 import path from 'node:path';
-import { promises as fs } from 'node:fs';
 import { walkFiles, readJsonSafe, exists, readText } from './util.mjs';
 import { loadPolicyRules } from './rules.mjs';
 import {
