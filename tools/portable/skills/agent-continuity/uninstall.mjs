@@ -78,8 +78,10 @@ function cleanNestedHooks(path, { dryRun }) {
 function cleanRepo(repo, { dryRun }) {
   for (const name of ['CLAUDE.md', 'AGENTS.md']) {
     const path = join(repo, name);
-    if (!existsSync(path)) continue;
-    const current = readFileSync(path, 'utf8');
+    // Read directly and skip on absence, rather than exists-then-read/write (a TOCTOU race).
+    let current;
+    try { current = readFileSync(path, 'utf8'); }
+    catch (error) { if (error.code === 'ENOENT') continue; throw error; }
     const updated = current.replace(BLOCK_RE, '').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
     if (updated === current) { console.log(`unchanged: ${path}`); continue; }
     if (dryRun) { console.log(`would update: ${path}`); continue; }

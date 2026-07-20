@@ -121,7 +121,10 @@ function copyFileIfChanged(source, destination, { backups = true, dryRun = false
 }
 
 function appendBlock(path, block, { backups = true, dryRun = false } = {}) {
-  const current = existsSync(path) ? readText(path) : '';
+  // Read directly and treat absence as empty, rather than exists-then-read/write (a TOCTOU race).
+  let current = '';
+  try { current = readText(path); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
   const normalized = `${block.trim()}\n`;
   let cleaned = current.replace(BLOCK_RE, '').trimEnd();
   const updated = `${cleaned ? `${cleaned}\n\n` : ''}${normalized}`;
