@@ -1,0 +1,420 @@
+name: CI Repair
+
+# Reacts to a failed "CI" run on the owner's own open PR and lets Claude (then, in
+# auto mode, Cursor) attempt one minimal fix under a read-only, push-incapable
+# sandbox. Our own deterministic apply job validates and, only on a clean pass,
+# commits/pushes and dispatches fresh checks. Everything is gated by the guard job
+# (trust / enablement / dedupe / shared 2-attempt limit) and re-checked before each
+# provider call and each push. It never touches secrets, policy, branch protection,
+# or merge state.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+# Default to read; each job narrows to exactly what it needs.
+permissions:
+  contents: read
+
+concurrency:
+  # Queue per PR head branch (never cancel) so a second failure event can't
+  # interrupt a push mid-flight; stale queued runs simply no-op via the guard
+  # re-checks. Keyed on head_branch (always populated on workflow_run) rather than
+  # the PR number, which is empty for the workflow_dispatch re-runs the automation
+  # itself triggers — so the initial and re-triggered repairs share one group.
+  group: ci-repair-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Guard: fail-closed trust/enablement/dedupe/attempt-limit. No provider is
+  # called and nothing is changed unless this job outputs proceed=true.
+  # ---------------------------------------------------------------------------
+  guard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      actions: read
+    outputs:
+      proceed: ${{ steps.guard.outputs.proceed }}
+      reason: ${{ steps.guard.outputs.reason }}
+      provider: ${{ steps.guard.outputs.provider }}
+      first_provider: ${{ steps.guard.outputs.first_provider }}
+      fallback_provider: ${{ steps.guard.outputs.fallback_provider }}
+      pr_number: ${{ steps.guard.outputs.pr_number }}
+      pr_branch: ${{ steps.guard.outputs.pr_branch }}
+      head_sha: ${{ steps.guard.outputs.head_sha }}
+      run_id: ${{ steps.guard.outputs.run_id }}
+      attempts: ${{ steps.guard.outputs.attempts }}
+      processed_run_ids: ${{ steps.guard.outputs.processed_run_ids }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - name: Evaluate guard
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_REPAIR_ENABLED: ${{ vars.CI_REPAIR_ENABLED }}
+          CI_REPAIR_PROVIDER: ${{ vars.CI_REPAIR_PROVIDER }}
+        run: node .github/scripts/ci-repair/guard.mjs
+
+  # ---------------------------------------------------------------------------
+  # Claude provider (read-only): edits the checkout in place; holds NO push
+  # credential. Its working-tree diff is uploaded for the apply job.
+  # ---------------------------------------------------------------------------
+  claude:
+    needs: guard
+    if: ${{ needs.guard.outputs.proceed == 'true' && needs.guard.outputs.first_provider == 'claude' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.guard.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Load shared instructions
+        id: instr
+        run: |
+          {
+            echo 'text<<CI_REPAIR_EOF'
+            cat .github/ci-repair/agent-instructions.md
+            echo 'CI_REPAIR_EOF'
+          } >> "$GITHUB_OUTPUT"
+      - name: Claude attempt
+        uses: anthropics/claude-code-action@3553f84341b92da26052e28acf1aa898f9511f32 # v1.0.177
+        with:
+          prompt: ${{ steps.instr.outputs.text }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: "--max-turns 8 --model claude-sonnet-5"
+      - name: Capture diff
+        id: diff
+        env:
+          HEAD_SHA: ${{ needs.guard.outputs.head_sha }}
+        run: |
+          git add -A
+          git diff --cached "${HEAD_SHA}" > "${RUNNER_TEMP}/ci-repair.diff" || true
+          if [ -s "${RUNNER_TEMP}/ci-repair.diff" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload diff artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ci-repair-diff-claude
+          path: ${{ runner.temp }}/ci-repair.diff
+          if-no-files-found: ignore
+          retention-days: 1
+
+  # ---------------------------------------------------------------------------
+  # Claude apply (write): validate the diff and, only on a clean pass, commit,
+  # push, and dispatch fresh CI/CodeQL runs. Runs only if the Claude job itself
+  # succeeded; a failed Claude job is treated as a technical failure.
+  # ---------------------------------------------------------------------------
+  claude-apply:
+    needs: [guard, claude]
+    if: ${{ needs.claude.result == 'success' }}
+    runs-on: ubuntu-latest
+    # Least privilege: only what apply-fix.sh actually uses — git push (contents)
+    # and dispatching fresh runs (actions). It never comments on PRs/issues.
+    permissions:
+      contents: write
+      actions: write
+    outputs:
+      outcome: ${{ steps.apply.outputs.outcome }}
+    steps:
+      # Check out the exact SHA the provider built its diff against (not the moving
+      # branch tip), so the diff applies to the state it was generated from. The
+      # later non-fast-forward push safely fails if the branch has since advanced.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.guard.outputs.head_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Ensure base ref for affected
+        run: git fetch origin master:refs/remotes/origin/master || true
+      - name: Download diff artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ci-repair-diff-claude
+          path: ${{ runner.temp }}
+      - name: Apply, validate, push, dispatch
+        id: apply
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_REPAIR_DIFF_FILE: ${{ runner.temp }}/ci-repair.diff
+          CI_REPAIR_PR_BRANCH: ${{ needs.guard.outputs.pr_branch }}
+          CI_REPAIR_PROVIDER: claude
+        run: |
+          set +e
+          bash .github/scripts/ci-repair/apply-fix.sh
+          code=$?
+          set -e
+          case "$code" in
+            0) outcome=committed ;;
+            20) outcome=non-actionable ;;
+            21) outcome=failed ;;
+            *) outcome=error ;;
+          esac
+          echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
+          echo "claude-apply outcome=$outcome (exit $code)"
+
+  # ---------------------------------------------------------------------------
+  # Cursor provider (read-only): runs when Cursor is the chosen provider, or as
+  # the auto-mode fallback after Claude fails technically or its diff is rejected
+  # by our validation. It does NOT run when Claude committed or was non-actionable.
+  # ---------------------------------------------------------------------------
+  cursor:
+    needs: [guard, claude, claude-apply]
+    # Fall back to Cursor (auto mode) whenever Claude did NOT produce a validated
+    # commit and did not deliberately decline. This keys off "not committed and
+    # not non-actionable" rather than the specific mapped outcomes, so a
+    # claude-apply JOB failure (checkout / npm ci / artifact download) — which
+    # leaves the outcome output empty — still triggers the fallback.
+    if: >-
+      ${{ always() && needs.guard.outputs.proceed == 'true' && (
+        needs.guard.outputs.first_provider == 'cursor' ||
+        (
+          needs.guard.outputs.fallback_provider == 'cursor' && (
+            needs.claude.result != 'success' || (
+              needs.claude-apply.outputs.outcome != 'committed' &&
+              needs.claude-apply.outputs.outcome != 'non-actionable'
+            )
+          )
+        )
+      ) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.guard.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Cursor attempt
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          CI_REPAIR_CWD: ${{ github.workspace }}
+        run: node .github/scripts/ci-repair/run-cursor.mjs
+      - name: Capture diff
+        id: diff
+        env:
+          HEAD_SHA: ${{ needs.guard.outputs.head_sha }}
+        run: |
+          git add -A
+          git diff --cached "${HEAD_SHA}" > "${RUNNER_TEMP}/ci-repair.diff" || true
+          if [ -s "${RUNNER_TEMP}/ci-repair.diff" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload diff artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ci-repair-diff-cursor
+          path: ${{ runner.temp }}/ci-repair.diff
+          if-no-files-found: ignore
+          retention-days: 1
+
+  # ---------------------------------------------------------------------------
+  # Cursor apply (write): identical validate/commit/push/dispatch as claude-apply.
+  # ---------------------------------------------------------------------------
+  cursor-apply:
+    needs: [guard, cursor]
+    if: ${{ needs.cursor.result == 'success' }}
+    runs-on: ubuntu-latest
+    # Least privilege: only git push (contents) and dispatching reruns (actions).
+    permissions:
+      contents: write
+      actions: write
+    outputs:
+      outcome: ${{ steps.apply.outputs.outcome }}
+    steps:
+      # Check out the exact SHA the provider built its diff against (see claude-apply).
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.guard.outputs.head_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Ensure base ref for affected
+        run: git fetch origin master:refs/remotes/origin/master || true
+      - name: Download diff artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ci-repair-diff-cursor
+          path: ${{ runner.temp }}
+      - name: Apply, validate, push, dispatch
+        id: apply
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_REPAIR_DIFF_FILE: ${{ runner.temp }}/ci-repair.diff
+          CI_REPAIR_PR_BRANCH: ${{ needs.guard.outputs.pr_branch }}
+          CI_REPAIR_PROVIDER: cursor
+        run: |
+          set +e
+          bash .github/scripts/ci-repair/apply-fix.sh
+          code=$?
+          set -e
+          case "$code" in
+            0) outcome=committed ;;
+            20) outcome=non-actionable ;;
+            21) outcome=failed ;;
+            *) outcome=error ;;
+          esac
+          echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
+          echo "cursor-apply outcome=$outcome (exit $code)"
+
+  # ---------------------------------------------------------------------------
+  # Finalize: persist state + notify. Updates the single PR status comment (with
+  # the trusted marker) and appends to the singleton status Issue only on real,
+  # observable transitions. Least privilege: no write to contents/actions.
+  # ---------------------------------------------------------------------------
+  finalize:
+    needs: [guard, claude, claude-apply, cursor, cursor-apply]
+    if: ${{ always() && needs.guard.outputs.proceed == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - name: Compute outcome, transition, and new state
+        id: compute
+        env:
+          GUARD_ATTEMPTS: ${{ needs.guard.outputs.attempts }}
+          RUN_ID: ${{ needs.guard.outputs.run_id }}
+          FIRST_PROVIDER: ${{ needs.guard.outputs.first_provider }}
+          FALLBACK_PROVIDER: ${{ needs.guard.outputs.fallback_provider }}
+          CLAUDE_RESULT: ${{ needs.claude.result }}
+          CLAUDE_OUTCOME: ${{ needs.claude-apply.outputs.outcome }}
+          CURSOR_RESULT: ${{ needs.cursor.result }}
+          CURSOR_OUTCOME: ${{ needs.cursor-apply.outputs.outcome }}
+        run: |
+          attempts_prev="${GUARD_ATTEMPTS:-0}"
+
+          committed=false
+          last_provider=""
+          if [ "$CLAUDE_OUTCOME" = "committed" ]; then committed=true; last_provider=claude; fi
+          if [ "$CURSOR_OUTCOME" = "committed" ]; then committed=true; last_provider=cursor; fi
+
+          # Last provider that actually ran (for state), if none committed.
+          if [ -z "$last_provider" ]; then
+            if [ "$CURSOR_RESULT" != "skipped" ] && [ -n "$CURSOR_RESULT" ]; then
+              last_provider=cursor
+            elif [ "$CLAUDE_RESULT" != "skipped" ] && [ -n "$CLAUDE_RESULT" ]; then
+              last_provider=claude
+            fi
+          fi
+
+          if [ "$committed" = "true" ]; then
+            attempts_new=$((attempts_prev + 1))
+          else
+            attempts_new=$attempts_prev
+          fi
+
+          # Technical failure = provider ran but produced no validated commit due to
+          # an error/rejected diff (NOT a deliberate non-actionable no-change).
+          claude_tech_fail=false
+          if [ "$CLAUDE_RESULT" != "success" ] || [ "$CLAUDE_OUTCOME" = "failed" ] || [ "$CLAUDE_OUTCOME" = "error" ]; then
+            if [ "$FIRST_PROVIDER" = "claude" ]; then claude_tech_fail=true; fi
+          fi
+          cursor_ran=false
+          if [ "$CURSOR_RESULT" != "skipped" ] && [ -n "$CURSOR_RESULT" ]; then cursor_ran=true; fi
+          cursor_tech_fail=false
+          if [ "$cursor_ran" = "true" ] && { [ "$CURSOR_RESULT" != "success" ] || [ "$CURSOR_OUTCOME" = "failed" ] || [ "$CURSOR_OUTCOME" = "error" ]; }; then
+            cursor_tech_fail=true
+          fi
+
+          # Select at most one observable transition (priority order).
+          event=""
+          status="CI-repair automation ran."
+          if [ "$attempts_new" -ge 2 ]; then
+            event="attempt-limit"
+            status="CI-repair reached the 2-attempt limit for this PR; no further automated repair will run."
+          elif [ "$claude_tech_fail" = "true" ] && [ "$cursor_tech_fail" = "true" ]; then
+            event="both-unavailable"
+            status="CI-repair could not produce a validated fix; both providers were unavailable for this run."
+          elif [ "$claude_tech_fail" = "true" ] && [ "$cursor_ran" = "true" ]; then
+            event="switch-to-cursor"
+            status="Claude was unavailable or its fix was rejected; Cursor was tried as a fallback."
+          elif [ "$committed" = "true" ] && [ "$attempts_prev" -gt 0 ]; then
+            event="provider-recovered"
+            status="CI-repair applied a validated fix after a previous unsuccessful attempt."
+          elif [ "$committed" = "true" ]; then
+            status="CI-repair applied a validated fix and dispatched fresh checks."
+          elif [ "$CLAUDE_OUTCOME" = "non-actionable" ] || [ "$CURSOR_OUTCOME" = "non-actionable" ]; then
+            status="CI-repair reviewed the failure and made no changes (non-actionable / low-confidence)."
+          else
+            status="CI-repair did not produce a validated fix for this run."
+          fi
+
+          {
+            echo "attempts_new=$attempts_new"
+            echo "last_provider=$last_provider"
+            echo "event=$event"
+            echo "status=$status"
+          } >> "$GITHUB_OUTPUT"
+          echo "finalize: committed=$committed attempts=$attempts_new event=${event:-none}"
+      - name: Build processed run id list
+        id: runids
+        env:
+          PREV: ${{ needs.guard.outputs.processed_run_ids }}
+          RUN_ID: ${{ needs.guard.outputs.run_id }}
+        run: |
+          node -e '
+            const prev = JSON.parse(process.env.PREV || "[]");
+            const id = Number(process.env.RUN_ID);
+            const set = Array.isArray(prev) ? prev.slice() : [];
+            if (Number.isInteger(id) && !set.includes(id)) set.push(id);
+            const fs = require("node:fs");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "list=" + JSON.stringify(set) + "\n");
+          '
+      - name: Notify and persist state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_REPAIR_PR_NUMBER: ${{ needs.guard.outputs.pr_number }}
+          CI_REPAIR_ATTEMPTS: ${{ steps.compute.outputs.attempts_new }}
+          CI_REPAIR_LAST_PROVIDER: ${{ steps.compute.outputs.last_provider }}
+          CI_REPAIR_PROCESSED_RUN_IDS: ${{ steps.runids.outputs.list }}
+          CI_REPAIR_EVENT: ${{ steps.compute.outputs.event }}
+          CI_REPAIR_STATUS_TEXT: ${{ steps.compute.outputs.status }}
+        run: node .github/scripts/ci-repair/notify.mjs

@@ -17,7 +17,7 @@ independence, so there is no `develop`/`integration` branch to batch through.
 
 `master` is protected by a branch ruleset: no direct pushes, no force-pushes, no deletion,
 linear history, and every change must arrive through a pull request that passes the **full CI
-pipeline** and a **code review** (see [Branch protection](#branch-protection)).
+pipeline** before the maintainer merges it (see [Branch protection](#branch-protection)).
 
 **Contributors work from a fork** (nobody but the maintainer has write access):
 
@@ -26,10 +26,11 @@ pipeline** and a **code review** (see [Branch protection](#branch-protection)).
    `chore/…`).
 3. Work, keep the gates green (`npm run verify`, `npm run secret-scan`), and push to your fork.
 4. Open a pull request against `ivanlehet/ai-dev-tools:master`.
-5. CI must be green and the review approved before merge. The maintainer merges with
-   **squash & merge**; the branch is deleted automatically after merge.
+5. CI must be green before merge. The maintainer merges with **squash & merge**; the branch is
+   deleted automatically after merge.
 
-Never attempt to push directly to `master`, force-push, or self-merge — the ruleset rejects it.
+Never attempt to push directly to `master`, force-push, or delete it — the ruleset rejects it for
+everyone.
 
 Release happens after merge, per tool, run by the maintainer: `nx release --projects=<tool>`
 (never from CI on a PR). Version intent accumulates on `master` as Version Plans and is
@@ -39,16 +40,20 @@ consumed at release time.
 
 `master` is enforced by a GitHub ruleset (commercial-standard hardening). It requires:
 
-- Pull request before merging, with **1 approving review** and **code-owner review**
-  (see [`.github/CODEOWNERS`](.github/CODEOWNERS)); stale approvals are dismissed on new pushes.
+- A **pull request before merging** — direct pushes to `master` are blocked for everyone,
+  including the maintainer.
 - **All required status checks green**: the aggregate `ci-success` gate (validate, tests,
   security/privacy/policy checks, commitlint, cross-platform lifecycle e2e) and `CodeQL`
   code scanning. Branches must be up to date before merging.
-- **Squash merge only**, linear history, conversation resolution.
+- **Squash merge only**, linear history.
 - No force-pushes and no branch deletion.
 
-Only the maintainer (repository admin) may merge, and only through a pull request — direct
-pushes are blocked for everyone, including the maintainer.
+**Only the maintainer can merge.** Merging requires write access to this repository, and the
+maintainer is its only collaborator — external contributors work from forks and therefore cannot
+merge, regardless of CI status. A separate approving review is *not* required: GitHub does not let
+a solo author approve their own PR, so the enforced controls are the green CI gate plus
+maintainer-only merge rights. (`.github/CODEOWNERS` still auto-requests the maintainer as reviewer
+as a courtesy, but review is not a merge gate.)
 
 ## Add a tool
 
