@@ -114,6 +114,7 @@ const RESOLVE_TARGET = `resolve_target() {
   case "$AI_HOST:$TOOL_TYPE" in
     claude:skill)  TARGET="$CLAUDE_HOME/skills/$TOOL_NAME" ;;
     codex:skill)   TARGET="$CODEX_HOME/skills/$TOOL_NAME" ;;
+    cursor:skill)  TARGET="$CURSOR_HOME/skills/$TOOL_NAME" ;;
     claude:agent)  TARGET="$CLAUDE_HOME/agents/$TOOL_NAME" ;;
     claude:hook)   TARGET="$CLAUDE_HOME/hooks/$TOOL_NAME" ;;
     claude:plugin) TARGET="$CLAUDE_HOME/plugins/local/$TOOL_NAME" ;;

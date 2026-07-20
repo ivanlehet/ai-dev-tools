@@ -1,0 +1,8 @@
+---
+description: Bidirectional continuity and startup quota safety for coding tasks across Cursor, Claude Code, and Codex
+alwaysApply: true
+---
+
+Read and follow `AGENT_CONTINUITY.md`.
+
+Use the `agent-continuity` skill when starting or resuming substantial work, switching providers, approaching usage or context limits, compacting, or coordinating multiple active tasks and worktrees. Respect the automatic startup probe result. When Cursor provides no exact quota and no trusted adapter is configured, use conservative incremental batches and frequent checkpoints; never claim an exact remaining quota. Update the provider-neutral handoff after material findings, decisions, coherent edit batches, and validation. Before ending a substantive turn or switching providers, create a fresh handoff. Preserve stable task IDs, branches, and worktrees for reverse transfer. Never copy raw provider IDs, transcript paths, transcripts, credentials, or hidden reasoning into portable continuity files. Never allow multiple active writers in the same worktree.

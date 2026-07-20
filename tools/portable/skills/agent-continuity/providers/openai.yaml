@@ -1,0 +1,6 @@
+interface:
+  display_name: "Agent Continuity"
+  short_description: "Cross-provider, multi-session task continuity"
+  default_prompt: "Resume all selected tasks from the newest provider-neutral handoff, verify every worktree, prevent concurrent writers, and keep continuity current."
+policy:
+  allow_implicit_invocation: true

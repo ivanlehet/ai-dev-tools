@@ -32,10 +32,11 @@ detect_platform() {
   # Per-host config roots (respect standard overrides where they exist).
   CLAUDE_HOME="${CLAUDE_CONFIG_DIR:-$HOME_DIR/.claude}"
   CODEX_HOME="${CODEX_HOME:-$HOME_DIR/.codex}"
-  # Cursor project rules are workspace-relative; user rules are in the app config.
+  CURSOR_HOME="${CURSOR_CONFIG_DIR:-${CURSOR_HOME:-$HOME_DIR/.cursor}}"
+  # Cursor project rules are workspace-relative; user rules/skills are in the app config.
   CURSOR_PROJECT_RULES_DIR=".cursor/rules"
 
-  export OS_PLATFORM HOME_DIR CLAUDE_HOME CODEX_HOME CURSOR_PROJECT_RULES_DIR
+  export OS_PLATFORM HOME_DIR CLAUDE_HOME CODEX_HOME CURSOR_HOME CURSOR_PROJECT_RULES_DIR
   return 0
 }
 

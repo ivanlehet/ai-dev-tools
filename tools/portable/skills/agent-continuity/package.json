@@ -1,0 +1,19 @@
+{
+  "name": "agent-continuity",
+  "version": "1.0.7",
+  "private": true,
+  "type": "module",
+  "description": "Provider-neutral coding task continuity across Claude Code, Codex, and Cursor.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "validate": "node validate.mjs",
+    "install:local": "node install.mjs"
+  },
+  "author": {
+    "name": "Ivan Lehet"
+  },
+  "license": "MIT"
+}

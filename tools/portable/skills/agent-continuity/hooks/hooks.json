@@ -1,0 +1,158 @@
+{
+  "description": "Claude Code lifecycle snapshots for Agent Continuity. The installer replaces these plugin-relative Node.js commands with host-specific exec-form hooks.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "timeout": 15,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/agent-continuity.mjs",
+              "hook",
+              "--provider",
+              "claude-code"
+            ]
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "timeout": 15,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/agent-continuity.mjs",
+              "hook",
+              "--provider",
+              "claude-code"
+            ]
+          }
+        ]
+      }
+    ],
+    "PostToolBatch": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "timeout": 15,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/agent-continuity.mjs",
+              "hook",
+              "--provider",
+              "claude-code"
+            ]
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "timeout": 20,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/agent-continuity.mjs",
+              "hook",
+              "--provider",
+              "claude-code"
+            ]
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "timeout": 15,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/agent-continuity.mjs",
+              "hook",
+              "--provider",
+              "claude-code"
+            ]
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "timeout": 20,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/agent-continuity.mjs",
+              "hook",
+              "--provider",
+              "claude-code"
+            ]
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "timeout": 15,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/agent-continuity.mjs",
+              "hook",
+              "--provider",
+              "claude-code"
+            ]
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "timeout": 15,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/agent-continuity.mjs",
+              "hook",
+              "--provider",
+              "claude-code"
+            ]
+          }
+        ]
+      }
+    ],
+    "CwdChanged": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "timeout": 15,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/agent-continuity.mjs",
+              "hook",
+              "--provider",
+              "claude-code"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
