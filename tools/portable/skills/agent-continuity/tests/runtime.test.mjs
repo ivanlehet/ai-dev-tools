@@ -305,6 +305,36 @@ test('rebind preserves task worktree ownership from a divergent checkout', () =>
   } finally { rmSync(base, { recursive: true, force: true }); }
 });
 
+test('observed_worktree_mismatch is cleared when the owned worktree hooks again', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ac-mismatch-clear-'));
+  try {
+    const home = join(base, 'home');
+    const repo = initRepo(base);
+    writeFileSync(join(repo, 'README.md'), 'x\n');
+    assert.equal(spawnSync('git', ['-C', repo, 'add', 'README.md']).status, 0);
+    assert.equal(spawnSync('git', ['-C', repo, 'commit', '-m', 'init'], { encoding: 'utf8' }).status, 0);
+    const wt = join(base, 'wt-owned');
+    const added = spawnSync('git', ['-C', repo, 'worktree', 'add', wt, '-b', 'owned-branch'], { encoding: 'utf8' });
+    assert.equal(added.status, 0, added.stderr);
+    const env = { HOME: home, USERPROFILE: home };
+    assert.equal(run(['snapshot', '--cwd', wt, '--provider', 'manual', '--event', 'test', '--task', 'owned-task'], { env }).status, 0);
+    const diverge = run(['hook', '--provider', 'claude-code'], { env, input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: repo, session_id: 'diverge-1' }) });
+    assert.equal(diverge.status, 0, diverge.stderr);
+    // Force the owned task to observe a mismatch via a snapshot from main (different worktree) while task id is forced.
+    const statePath = join(repo, '.git', 'agent-continuity', 'portable', 'tasks', 'owned-task', 'state.json');
+    const afterDivergeHook = run(['snapshot', '--cwd', repo, '--provider', 'manual', '--event', 'test', '--task', 'owned-task'], { env });
+    assert.equal(afterDivergeHook.status, 0, afterDivergeHook.stderr);
+    const mismatched = JSON.parse(readFileSync(statePath, 'utf8'));
+    assert.ok(mismatched.observed_worktree_mismatch, 'expected a recorded mismatch from main checkout');
+    assert.equal(realpathSync(mismatched.worktree), realpathSync(wt), 'ownership must stay on owned worktree');
+    const realign = run(['snapshot', '--cwd', wt, '--provider', 'manual', '--event', 'test', '--task', 'owned-task'], { env });
+    assert.equal(realign.status, 0, realign.stderr);
+    const cleared = JSON.parse(readFileSync(statePath, 'utf8'));
+    assert.equal(cleared.observed_worktree_mismatch, undefined, 'mismatch must clear when owned worktree hooks again');
+    assert.equal(realpathSync(cleared.worktree), realpathSync(wt));
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
 test('export-global refuses when no complete semantic handoff exists', () => {
   const base = mkdtempSync(join(tmpdir(), 'ac-export-global-'));
   try {

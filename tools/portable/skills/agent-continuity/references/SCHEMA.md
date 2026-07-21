@@ -44,7 +44,7 @@ The active statuses (included in `list`, `snapshot-all`, and `export`) are `plan
 
 `in_review` (and `review`) is accepted as an alias for `ready_for_review`. It is normalized to `ready_for_review` whenever status is persisted to the registry, so a task written as `in_review` by an agent still appears in exports and handoffs.
 
-A task's recorded `worktree`/`branch` express ownership and are not overwritten by a hook running from a different checkout; a divergent observation is recorded under `observed_worktree_mismatch` instead.
+A task's recorded `worktree`/`branch` express ownership and are not overwritten by a hook running from a different checkout; a divergent observation is recorded under `observed_worktree_mismatch` instead. When a later hook runs again from the owned worktree, that mismatch field is cleared.
 
 ## Repository private provider map
 

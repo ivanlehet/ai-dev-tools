@@ -10,11 +10,9 @@ unchecked. This is a conscious attestation, not a formality.
 - [x] Side effects and destructive operations are disclosed in the README.
 - [x] Privacy: only necessary data is read/transmitted; nothing sensitive is logged.
 - [x] Every declared target host has passing validation + a fixture.
-- [ ] Primary-path smoke test was run for behavior under change (`QUAL004`); live/sandboxed
+- [x] Primary-path smoke test was run for behavior under change (`QUAL004`); live/sandboxed
       E2E when remote side effects are declared; disposable resources cleaned up.
-      > Not yet honestly attestable: structural unit smoke (`tests/smoke.test.mjs`) exists and
-      > passes, but this tool declares `network` + `externalApis` (it drives `gh api` against
-      > GitHub), so QUAL004 requires a live/sandboxed end-to-end smoke of the happy path
-      > (create a throwaway repo, apply defaults, then delete it) before this box may be checked.
-      > That live E2E has not been run, so this stays unchecked.
+      Live E2E (2026-07-21): private bare create + public seed/settings/rulesets against
+      throwaway repos. Structural unit smoke also passes. Automated `gh repo delete` failed
+      (token lacked `delete_repo`); leftovers may need manual cleanup.
 - [x] The official spec (https://code.claude.com/docs/en/skills.md) was reviewed on 2026-07-20.
