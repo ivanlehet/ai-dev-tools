@@ -276,6 +276,49 @@ test('locator continuity_root matches the git-common-dir base (regression #20)',
   } finally { rmSync(base, { recursive: true, force: true }); }
 });
 
+test('rebind preserves task worktree ownership from a divergent checkout', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ac-rebind-'));
+  try {
+    const home = join(base, 'home');
+    const repo = initRepo(base);
+    writeFileSync(join(repo, 'README.md'), '# test\n');
+    assert.equal(spawnSync('git', ['-C', repo, 'add', 'README.md']).status, 0);
+    assert.equal(spawnSync('git', ['-C', repo, 'commit', '-m', 'init'], { encoding: 'utf8' }).status, 0);
+    const wt = join(base, 'wt-owned');
+    const added = spawnSync('git', ['-C', repo, 'worktree', 'add', wt, '-b', 'owned-branch'], { encoding: 'utf8' });
+    assert.equal(added.status, 0, added.stderr);
+    const env = { HOME: home, USERPROFILE: home };
+    const owned = run(['snapshot', '--cwd', wt, '--provider', 'manual', '--event', 'test', '--task', 'owned-task'], { env });
+    assert.equal(owned.status, 0, owned.stderr);
+    const start = run(['hook', '--provider', 'claude-code'], { env, input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: repo, session_id: 'rebind-session-1' }) });
+    assert.equal(start.status, 0, start.stderr);
+    const registryPath = join(repo, '.git', 'agent-continuity', 'portable', 'registry.json');
+    const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
+    const runRef = Object.keys(registry.provider_runs).find(ref => registry.provider_runs[ref].provider === 'claude-code');
+    assert.ok(runRef, 'expected a claude-code provider run');
+    const rebound = run(['rebind', '--cwd', repo, '--provider-run-ref', runRef, '--task', 'owned-task'], { env });
+    assert.equal(rebound.status, 0, rebound.stderr);
+    const state = JSON.parse(readFileSync(join(repo, '.git', 'agent-continuity', 'portable', 'tasks', 'owned-task', 'state.json'), 'utf8'));
+    const after = JSON.parse(readFileSync(registryPath, 'utf8'));
+    assert.equal(realpathSync(state.worktree), realpathSync(wt));
+    assert.equal(realpathSync(after.tasks['owned-task'].worktree), realpathSync(wt));
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('export-global refuses when no complete semantic handoff exists', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ac-export-global-'));
+  try {
+    const home = join(base, 'home');
+    const repo = initRepo(base);
+    const env = { HOME: home, USERPROFILE: home };
+    const start = run(['hook', '--provider', 'claude-code'], { env, input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: repo, session_id: 'global-refuse-1' }) });
+    assert.equal(start.status, 0, start.stderr);
+    const exported = run(['export-global', '--target', 'codex'], { env });
+    assert.notEqual(exported.status, 0, `export-global should refuse but exited 0: ${exported.stdout}`);
+    assert.match(`${exported.stderr}\n${exported.stdout}`, /refus/i);
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
 test('statusline records exact Claude usage and returns compact display', () => {
   const base = mkdtempSync(join(tmpdir(), 'ac-status-'));
   try {
