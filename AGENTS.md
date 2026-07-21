@@ -63,6 +63,12 @@ npm run secret-scan   # repo-wide
 npm run create-version-plan   # record version intent for releasable changes
 ```
 
+For any PR that **adds or changes tool behavior**, also run a **primary-path smoke test**
+and report the result on the PR (`QUAL004` in [`docs/POLICY.md`](docs/POLICY.md)). When the
+tool declares `network`, `externalApis`, or other remote side effects, unit/structural smoke
+alone is not enough — run a live or sandboxed end-to-end smoke of the happy path, then clean
+up disposable resources. Never claim a smoke passed without running it.
+
 Then run `/security-review` and `/review`, fix confirmed blocking findings, and post the
 findings on the PR.
 

@@ -15,7 +15,8 @@ Key rules:
 - After generating: complete `manifest/tool.json` disclosure and **honestly** attest
   `SECURITY-CHECKLIST.md`.
 - Only claim a target host in `targets` after its validation + fixture pass.
-- Before a PR: `npm run verify` and `npm run secret-scan` green; a human reviews and merges.
+- Before a PR: `npm run verify` and `npm run secret-scan` green; for tool behavior changes
+  run and report a primary-path smoke test (`QUAL004`); a human reviews and merges.
 
 Enforced policy: `docs/POLICY.md`. No lifecycle command may report success without doing the
 work it claims; no secrets; no install-time `curl | bash`.

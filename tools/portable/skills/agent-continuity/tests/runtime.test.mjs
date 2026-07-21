@@ -172,6 +172,50 @@ test('export includes a task with status in_review and a filled handoff (regress
   } finally { rmSync(base, { recursive: true, force: true }); }
 });
 
+test('export includes only complete tasks and drops incomplete non-provisional ones', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ac-complete-only-'));
+  try {
+    const home = join(base, 'home');
+    const repo = initRepo(base);
+    const env = { HOME: home, USERPROFILE: home };
+    // A complete semantic task (stable id) fully filled in.
+    const completeSnap = run(['snapshot', '--cwd', repo, '--provider', 'manual', '--event', 'test', '--task', 'complete-task'], { env });
+    assert.equal(completeSnap.status, 0, completeSnap.stderr);
+    const completeDir = join(repo, '.git', 'agent-continuity', 'portable', 'tasks', 'complete-task');
+    const filledHandoff = [
+      '# Handoff: complete-task', '',
+      '## Objective', '', 'Ship the complete task and verify it.', '',
+      '## Acceptance criteria', '', '- Bundle contains only complete tasks.', '',
+      '## Current status', '', 'in_progress', '',
+      '## Completed', '', '- Implemented the guard.', '',
+      '## In progress', '', '- Verifying the export.', '',
+      '## Exact next action', '', 'Assert only the complete task is exported.', '',
+      '## Files changed or relevant', '', '- src/thing.ts', '',
+      '## Decisions and rationale', '', '- Keep it provider-neutral.', '',
+      '## Findings and failed approaches', '', '- None recorded.', '',
+      '## Tests and validation', '', '- Unit tests pass.', '',
+      '## Known blockers or risks', '', '- None.', '',
+      '## Branch, worktree, HEAD, and base', '', '- Branch: `main`', `- Worktree: \`${repo}\``, '- HEAD: `abc123`', '- Base: `main`', '',
+    ].join('\n');
+    writeFileSync(join(completeDir, 'HANDOFF.md'), filledHandoff);
+    // An incomplete non-provisional task (stable id, but placeholders still present).
+    const incompleteSnap = run(['snapshot', '--cwd', repo, '--provider', 'manual', '--event', 'test', '--task', 'incomplete-task'], { env });
+    assert.equal(incompleteSnap.status, 0, incompleteSnap.stderr);
+    const incompleteDir = join(repo, '.git', 'agent-continuity', 'portable', 'tasks', 'incomplete-task');
+    assert.match(readFileSync(join(incompleteDir, 'HANDOFF.md'), 'utf8'), /TO BE COMPLETED BY THE AGENT/);
+    const exported = run(['export', '--cwd', repo, '--target', 'codex'], { env });
+    assert.equal(exported.status, 0, exported.stderr);
+    const bundle = JSON.parse(exported.stdout);
+    const ids = bundle.manifest.tasks.map(t => t.task_id);
+    assert.deepEqual(ids.sort(), ['complete-task'], `manifest tasks: ${JSON.stringify(ids)}`);
+    assert.ok(existsSync(join(bundle.bundle, 'tasks', 'complete-task', 'HANDOFF.md')));
+    assert.equal(existsSync(join(bundle.bundle, 'tasks', 'incomplete-task')), false, 'incomplete task must not be copied into the bundle');
+    const resume = readFileSync(bundle.resume_prompt, 'utf8');
+    assert.match(resume, /complete-task/);
+    assert.doesNotMatch(resume, /incomplete-task/);
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
 test('export refuses placeholder-only provisional tasks (regression #20)', () => {
   const base = mkdtempSync(join(tmpdir(), 'ac-refuse-'));
   try {

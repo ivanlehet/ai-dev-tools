@@ -76,6 +76,8 @@ unchecked. This is a conscious attestation, not a formality.
 - [ ] Side effects and destructive operations are disclosed in the README.
 - [ ] Privacy: only necessary data is read/transmitted; nothing sensitive is logged.
 - [ ] Every declared target host has passing validation + a fixture.
+- [ ] Primary-path smoke test was run for behavior under change (\`QUAL004\`); live/sandboxed
+      E2E when remote side effects are declared; disposable resources cleaned up.
 - [ ] The official spec (${o.specSource}) was reviewed on ${o.specReviewedOn}.
 `;
 }

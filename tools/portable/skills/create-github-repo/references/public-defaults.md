@@ -2,6 +2,26 @@
 
 Apply only when `visibility=public`. Replace `OWNER`, `REPO`, and `OWNER_ID`.
 
+## Security posture — read before relying on these defaults
+
+These are deliberately permissive **greenfield defaults for a brand-new, empty public repo
+that has no CI yet and only the repo owner as a writer**. They are a safe starting point,
+**not** strong branch protection. In particular:
+
+- `allowed_actions=all` lets any GitHub Action run (SHA pinning is required, which mitigates
+  but does not eliminate supply-chain risk). See the note in *Actions permissions* below for a
+  stricter `local_only` alternative.
+- `required_approving_review_count: 0` means a PR can be merged with **zero** reviews — the
+  ruleset still forces the PR flow, linear history, and squash-only, but it does not require a
+  second pair of eyes while the owner is the only writer.
+- `require_code_owner_review: false` means CODEOWNERS is advisory, not enforced.
+
+**Before inviting any additional writers, collaborators should tighten this**: raise
+`required_approving_review_count` to at least `1`, set `require_code_owner_review: true`, add
+`required_status_checks` once CI exists, and consider `allowed_actions=local_only` (or
+`selected`). Leaving the permissive defaults in place on a multi-writer repo is a real risk,
+not an oversight of this skill.
+
 ## Repo settings
 
 ```bash
@@ -36,6 +56,16 @@ gh api -X PUT "repos/${OWNER}/${REPO}/actions/permissions/workflow" \
 ```
 
 If `sha_pinning_required` is rejected by the API/plan, continue without it and note that in the report.
+
+> **Hardening note.** `allowed_actions=all` is intentional for an empty repo so the owner can
+> immediately adopt any workflow, and SHA pinning is required to blunt supply-chain risk. It is
+> **not** the most restrictive option. The seed flow below only pushes files (it runs no
+> workflows), so switching to `allowed_actions=local_only` — actions defined in this repo only —
+> would not break anything shipped by this skill; it only means the owner must loosen it when
+> they later add a workflow that uses a marketplace action. Prefer `local_only` (or `selected`
+> with an explicit allowlist) if you do not expect to use third-party actions soon. Changing the
+> product default here would silently alter the owner-facing behavior, so it is documented rather
+> than flipped by default — choose deliberately.
 
 ## Security alerts
 
@@ -99,6 +129,15 @@ EOF
 ## Ruleset: protect-release-tags
 
 Bypass: authenticated owner only (`OWNER_ID` from `gh api user --jq .id`).
+
+This heredoc is **unquoted** so `${OWNER_ID}` is interpolated straight into JSON. `OWNER_ID`
+must therefore be a bare integer — validate it before use so a malformed or hostile value
+cannot break out of the JSON or inject additional fields:
+
+```bash
+OWNER_ID="$(gh api user --jq .id)"
+[[ "$OWNER_ID" =~ ^[0-9]+$ ]] || { echo "OWNER_ID must be numeric, got: $OWNER_ID" >&2; exit 1; }
+```
 
 ```bash
 gh api -X POST "repos/${OWNER}/${REPO}/rulesets" --input - <<EOF
