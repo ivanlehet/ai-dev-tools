@@ -27,11 +27,35 @@ resolve_target() {
   esac
 }
 resolve_target
+EXPECTED_TARGET="$TARGET"
+
+# Resolve an existing path (file or dir) to its physical absolute path (follows symlinks).
+physical_path() {
+  local p="$1"
+  if [ -d "$p" ]; then (cd "$p" 2>/dev/null && pwd -P)
+  else (cd "$(dirname "$p")" 2>/dev/null && printf '%s/%s\n' "$(pwd -P)" "$(basename "$p")"); fi
+}
 
 RECEIPT="$SCRIPT_DIR/.install-receipt"
 if [ -f "$RECEIPT" ]; then TARGET="$(cat "$RECEIPT")"; fi
 if [ ! -e "$TARGET" ]; then echo "uninstall: nothing installed at $TARGET"; exit 0; fi
-case "$TARGET" in *"/$TOOL_NAME") : ;; *) echo "uninstall: refusing to remove non-owned path $TARGET" >&2; exit 1 ;; esac
+
+# The receipt is attacker-controllable, so never trust it blindly before `rm -rf`.
+# Resolve symlinks and require the target to be the tool's own directory under the expected
+# host skill root (or to equal the freshly resolved target). Refuse anything else.
+EXPECTED_ROOT="$(dirname "$EXPECTED_TARGET")"
+if [ -d "$EXPECTED_ROOT" ]; then RESOLVED_ROOT="$(cd "$EXPECTED_ROOT" && pwd -P)"; else RESOLVED_ROOT="$EXPECTED_ROOT"; fi
+RESOLVED_EXPECTED="$(physical_path "$EXPECTED_TARGET" 2>/dev/null || true)"; [ -n "$RESOLVED_EXPECTED" ] || RESOLVED_EXPECTED="$EXPECTED_TARGET"
+RESOLVED_TARGET="$(physical_path "$TARGET" 2>/dev/null || true)"; [ -n "$RESOLVED_TARGET" ] || RESOLVED_TARGET="$TARGET"
+receipt_ok=0
+[ "$RESOLVED_TARGET" = "$RESOLVED_EXPECTED" ] && receipt_ok=1
+case "$RESOLVED_TARGET" in
+  */"$TOOL_NAME") case "$RESOLVED_TARGET" in "$RESOLVED_ROOT"/*) receipt_ok=1 ;; esac ;;
+esac
+if [ "$receipt_ok" != "1" ]; then
+  echo "uninstall: refusing to remove path outside the expected $AI_HOST skill location: $TARGET (resolved: $RESOLVED_TARGET; expected under: $RESOLVED_ROOT)" >&2
+  exit 1
+fi
 if [ "$DRY_RUN" = "1" ]; then echo "[dry-run] would remove $TARGET"; exit 0; fi
 rm -rf "$TARGET"
 rm -f "$RECEIPT"

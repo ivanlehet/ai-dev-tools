@@ -82,3 +82,8 @@ fixture pass.
 
 `npm run verify` must be green, and `/security-review` + `/review` must show no blocking
 findings. See [`POLICY.md`](POLICY.md).
+
+Also run a **primary-path smoke test** for any behavior change and report it on the PR
+(`QUAL004`). When the tool declares remote side effects (`network`, `externalApis`, …),
+unit/structural smoke alone is insufficient — run a live or sandboxed end-to-end smoke of
+the happy path and clean up disposable resources.

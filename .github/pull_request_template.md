@@ -11,6 +11,8 @@
 - [ ] A **Version Plan** is included for any releasable change (`npm run create-version-plan`),
       or the change is genuinely release-neutral.
 - [ ] Every claimed target host has passing validation + a fixture (no unverified compatibility).
+- [ ] Primary-path **smoke test** run and reported for behavior changes (`QUAL004`); live/sandboxed
+      E2E smoke when the tool has remote side effects; disposable resources cleaned up.
 - [ ] No secrets, no `.env` values, no install-time remote code execution.
 - [ ] Breaking security/privacy/permission/compat changes use a minor/major bump and are documented.
 

@@ -83,7 +83,11 @@ Then complete the disclosure in `manifest/tool.json` and honestly attest
 
 1. `npm run verify` and `npm run secret-scan` are green.
 2. Add a Version Plan for releasable changes: `npm run create-version-plan`.
-3. Run `/security-review` and `/review`; fix confirmed blocking findings on the same branch;
+3. For behavior changes to a tool: run a **primary-path smoke test** and report it on the PR
+   (`QUAL004`). If the tool has remote side effects (`network` / `externalApis` / similar),
+   use a live or sandboxed end-to-end smoke — not only unit/structural checks — and clean up
+   disposable resources afterward.
+4. Run `/security-review` and `/review`; fix confirmed blocking findings on the same branch;
    post the findings on the PR (every round).
 
 ## Commits
