@@ -30,6 +30,7 @@ test('create-github-repo: SKILL.md documents public vs private paths', async () 
   assert.match(skill, /protect-master/);
   assert.match(skill, /protect-release-tags/);
   assert.match(skill, /references\/public-defaults\.md/);
+  assert.match(skill, /if gh api "repos\/\$\{OWNER\}\/\$\{REPO\}"/);
 });
 
 test('create-github-repo: templates and public-defaults reference exist', async () => {

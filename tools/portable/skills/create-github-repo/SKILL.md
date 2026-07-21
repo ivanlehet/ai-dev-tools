@@ -36,13 +36,15 @@ OWNER_ID="$(gh api user --jq .id)"
 
 If `name` contains `/`, split into `OWNER` / `REPO`. Otherwise `REPO="$name"`.
 
-Abort if the repo already exists:
+Abort if the repo already exists (404 means OK to create — do not use bare `gh api`
+under `set -e`, which would abort on 404):
 
 ```bash
-gh api "repos/${OWNER}/${REPO}" --silent && echo "exists" && exit 1
+if gh api "repos/${OWNER}/${REPO}" --silent 2>/dev/null; then
+  echo "exists: ${OWNER}/${REPO}" >&2
+  exit 1
+fi
 ```
-
-(Treat HTTP 404 as OK to create.)
 
 ### 2. Private → bare create only
 
