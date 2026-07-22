@@ -1,0 +1,38 @@
+{
+  "name": "create-github-repo",
+  "type": "skill",
+  "targets": [
+    "claude",
+    "cursor",
+    "codex"
+  ],
+  "version": "0.1.0",
+  "license": "MIT",
+  "summary": "Create a GitHub repository (public with ai-dev-tools-like defaults, or private bare).",
+  "capabilities": {
+    "filesystemRead": true,
+    "filesystemWrite": true,
+    "shell": true,
+    "network": true,
+    "git": true,
+    "externalApis": true,
+    "mcp": false,
+    "credentials": false,
+    "telemetry": false,
+    "remoteContent": false
+  },
+  "permissions": [
+    "Run the authenticated gh CLI against api.github.com to create repositories and configure settings/rulesets.",
+    "Read skill templates under this tool directory and write substituted seed files into a local working tree for the new public repo.",
+    "Run git init/add/commit/push (and gh repo create --source) only for the new repository's first seed commit on public creates.",
+    "Does not read, store, or print GitHub tokens; relies on existing gh authentication."
+  ],
+  "sideEffects": [
+    "Creates a new GitHub repository under the authenticated user (or an owner/name the user can admin).",
+    "For public repos: mutates repository settings, Actions permissions, vulnerability reporting, creates branch/tag rulesets, and pushes a seed commit with SECURITY.md, PR template, and CODEOWNERS.",
+    "For private repos: creates the repository only (no rulesets, no seed files).",
+    "Never force-pushes, never enables auto-merge, never merges pull requests."
+  ],
+  "specSource": "https://code.claude.com/docs/en/skills.md",
+  "specReviewedOn": "2026-07-20"
+}

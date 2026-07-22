@@ -1,0 +1,79 @@
+{
+  "name": "create-github-repo",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "tools/portable/skills/create-github-repo",
+  "tags": [
+    "ai:portable",
+    "type:skill"
+  ],
+  "targets": {
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/validation/src/cli.mjs validate tools/portable/skills/create-github-repo"
+      }
+    },
+    "security-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/validation/src/cli.mjs security tools/portable/skills/create-github-repo"
+      }
+    },
+    "privacy-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/validation/src/cli.mjs privacy tools/portable/skills/create-github-repo"
+      }
+    },
+    "policy-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/validation/src/cli.mjs policy tools/portable/skills/create-github-repo"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --test",
+        "cwd": "tools/portable/skills/create-github-repo"
+      }
+    },
+    "package": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{workspaceRoot}/dist/tools/create-github-repo"
+      ],
+      "options": {
+        "command": "node scripts/package-tool.mjs tools/portable/skills/create-github-repo dist/tools/create-github-repo"
+      }
+    },
+    "validate-package": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "package"
+      ],
+      "options": {
+        "command": "node scripts/validate-package.mjs dist/tools/create-github-repo"
+      }
+    },
+    "install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash tools/portable/skills/create-github-repo/install.sh --host claude"
+      }
+    },
+    "uninstall": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash tools/portable/skills/create-github-repo/uninstall.sh --host claude"
+      }
+    },
+    "verify-install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash tools/portable/skills/create-github-repo/validate.sh --verify-install --host claude"
+      }
+    }
+  }
+}
