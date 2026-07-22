@@ -12,7 +12,8 @@ The essentials:
   the full lifecycle, and input validation.
 - After generating, complete `manifest/tool.json` disclosure and **honestly** attest
   `SECURITY-CHECKLIST.md`.
-- Before a PR: `npm run verify` and `npm run secret-scan` must be green; then `/security-review`
+- Before a PR: `npm run verify` and `npm run secret-scan` must be green; for tool behavior
+  changes run a primary-path smoke test and report it (`QUAL004`); then `/security-review`
   and `/review`.
 - Enforced policy in [`docs/POLICY.md`](docs/POLICY.md): no command fakes success, no secrets,
   no `curl | bash`, a human merges — never the agent, never auto-merge.
