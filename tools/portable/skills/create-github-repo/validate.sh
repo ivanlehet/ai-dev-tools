@@ -40,19 +40,11 @@ if [ "$MODE" = "verify-install" ]; then
   RECEIPT="$SCRIPT_DIR/.install-receipt"
   if [ -f "$RECEIPT" ]; then TARGET="$(cat "$RECEIPT")"; fi
   [ -d "$TARGET" ] || { echo "verify-install: not installed at $TARGET" >&2; exit 1; }
-  # The receipt is attacker-controllable; only trust a target that is the tool's own directory
-  # under the expected host skill root (or equal to the freshly resolved target).
-  EXPECTED_ROOT="$(dirname "$EXPECTED_TARGET")"
-  if [ -d "$EXPECTED_ROOT" ]; then RESOLVED_ROOT="$(cd "$EXPECTED_ROOT" && pwd -P)"; else RESOLVED_ROOT="$EXPECTED_ROOT"; fi
+  # The receipt is attacker-controllable; only trust an exact match to the expected install path.
   RESOLVED_EXPECTED="$(physical_path "$EXPECTED_TARGET" 2>/dev/null || true)"; [ -n "$RESOLVED_EXPECTED" ] || RESOLVED_EXPECTED="$EXPECTED_TARGET"
   RESOLVED_TARGET="$(physical_path "$TARGET" 2>/dev/null || true)"; [ -n "$RESOLVED_TARGET" ] || RESOLVED_TARGET="$TARGET"
-  receipt_ok=0
-  [ "$RESOLVED_TARGET" = "$RESOLVED_EXPECTED" ] && receipt_ok=1
-  case "$RESOLVED_TARGET" in
-    */"$TOOL_NAME") case "$RESOLVED_TARGET" in "$RESOLVED_ROOT"/*) receipt_ok=1 ;; esac ;;
-  esac
-  if [ "$receipt_ok" != "1" ]; then
-    echo "verify-install: receipt points outside the expected $AI_HOST skill location: $TARGET (resolved: $RESOLVED_TARGET; expected under: $RESOLVED_ROOT)" >&2
+  if [ "$RESOLVED_TARGET" != "$RESOLVED_EXPECTED" ]; then
+    echo "verify-install: receipt is not the exact expected $AI_HOST install location: $TARGET (resolved: $RESOLVED_TARGET; expected: $RESOLVED_EXPECTED)" >&2
     exit 1
   fi
   echo "verify-install: create-github-repo present at $TARGET"
