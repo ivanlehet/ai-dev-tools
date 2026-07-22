@@ -1,6 +1,6 @@
 {
   "name": "agent-continuity",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "private": true,
   "type": "module",
   "description": "Provider-neutral coding task continuity across Claude Code, Codex, and Cursor.",

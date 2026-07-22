@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 const runtime = new URL('../scripts/agent-continuity.mjs', import.meta.url).pathname;
 function run(args, { cwd, env, input } = {}) {
@@ -27,6 +27,22 @@ test('snapshot and export preserve provider-neutral task state', () => {
     assert.equal(snapshot.status, 0, snapshot.stderr);
     const parsed = JSON.parse(snapshot.stdout);
     assert.equal(parsed.task_id, 'portable-task');
+    const handoff = [
+      '# Handoff: portable-task', '',
+      '## Objective', '', 'Preserve provider-neutral task state across a handoff.', '',
+      '## Acceptance criteria', '', '- Bundle contains no session IDs.', '',
+      '## Current status', '', 'in_progress', '',
+      '## Completed', '', '- Recorded portable task state.', '',
+      '## In progress', '', '- Verifying the exported bundle.', '',
+      '## Exact next action', '', 'Assert the exported manifest omits provider session IDs.', '',
+      '## Files changed or relevant', '', '- state.json', '',
+      '## Decisions and rationale', '', '- Keep the bundle provider-neutral.', '',
+      '## Findings and failed approaches', '', '- None recorded.', '',
+      '## Tests and validation', '', '- Runtime tests pass.', '',
+      '## Known blockers or risks', '', '- None.', '',
+      '## Branch, worktree, HEAD, and base', '', '- Branch: `main`', `- Worktree: \`${repo}\``, '- HEAD: `abc123`', '- Base: `main`', '',
+    ].join('\n');
+    writeFileSync(join(repo, '.git', 'agent-continuity', 'portable', 'tasks', 'portable-task', 'HANDOFF.md'), handoff);
     const exported = run(['export', '--cwd', repo, '--target', 'codex'], { env });
     assert.equal(exported.status, 0, exported.stderr);
     const bundle = JSON.parse(exported.stdout);
@@ -106,6 +122,230 @@ test('first prompt renames a provisional task and the Claude session', () => {
     const registry = JSON.parse(readFileSync(join(repo, '.git', 'agent-continuity', 'portable', 'registry.json'), 'utf8'));
     const runRecord = Object.values(registry.provider_runs).find(item => item.provider === 'claude-code');
     assert.equal(runRecord.task_id, 'Fix-login-redirect-bug-in-the-dashboard');
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('export includes a task with status in_review and a filled handoff (regression #20)', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ac-in-review-'));
+  try {
+    const home = join(base, 'home');
+    const repo = initRepo(base);
+    const env = { HOME: home, USERPROFILE: home, AGENT_CONTINUITY_TASK_ID: 'real-task' };
+    const snap = run(['snapshot', '--cwd', repo, '--provider', 'manual', '--event', 'test'], { env });
+    assert.equal(snap.status, 0, snap.stderr);
+    const taskDir = join(repo, '.git', 'agent-continuity', 'portable', 'tasks', 'real-task');
+    const filledHandoff = [
+      '# Handoff: real-task', '',
+      '## Objective', '', 'Ship the login redirect fix and verify it end to end.', '',
+      '## Acceptance criteria', '', '- Redirect works for expired sessions.', '',
+      '## Current status', '', 'in_review', '',
+      '## Completed', '', '- Implemented the redirect guard.', '',
+      '## In progress', '', '- Awaiting review.', '',
+      '## Exact next action', '', 'Run the e2e suite, then open the PR for review.', '',
+      '## Files changed or relevant', '', '- src/auth/redirect.ts', '',
+      '## Decisions and rationale', '', '- Chose a server-side redirect.', '',
+      '## Findings and failed approaches', '', '- A client-side guard flashed content.', '',
+      '## Tests and validation', '', '- Unit tests pass.', '',
+      '## Known blockers or risks', '', '- None.', '',
+      '## Branch, worktree, HEAD, and base', '', '- Branch: `main`', `- Worktree: \`${repo}\``, '- HEAD: `abc123`', '- Base: `main`', '',
+    ].join('\n');
+    writeFileSync(join(taskDir, 'HANDOFF.md'), filledHandoff);
+    const statePath = join(taskDir, 'state.json');
+    const state = JSON.parse(readFileSync(statePath, 'utf8'));
+    state.status = 'in_review';
+    state.objective = 'Ship the login redirect fix.';
+    writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`);
+    const registryPath = join(repo, '.git', 'agent-continuity', 'portable', 'registry.json');
+    const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
+    registry.tasks['real-task'].status = 'in_review';
+    registry.tasks['real-task'].objective = 'Ship the login redirect fix.';
+    writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
+    const exported = run(['export', '--cwd', repo, '--target', 'codex'], { env });
+    assert.equal(exported.status, 0, exported.stderr);
+    const bundle = JSON.parse(exported.stdout);
+    const ids = bundle.manifest.tasks.map(t => t.task_id);
+    assert.ok(ids.includes('real-task'), `manifest tasks: ${JSON.stringify(ids)}`);
+    const exportedTask = bundle.manifest.tasks.find(t => t.task_id === 'real-task');
+    assert.equal(exportedTask.semantic_handoff_complete, true);
+    const resume = readFileSync(bundle.resume_prompt, 'utf8');
+    assert.match(resume, /real-task/);
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('export includes only complete tasks and drops incomplete non-provisional ones', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ac-complete-only-'));
+  try {
+    const home = join(base, 'home');
+    const repo = initRepo(base);
+    const env = { HOME: home, USERPROFILE: home };
+    // A complete semantic task (stable id) fully filled in.
+    const completeSnap = run(['snapshot', '--cwd', repo, '--provider', 'manual', '--event', 'test', '--task', 'complete-task'], { env });
+    assert.equal(completeSnap.status, 0, completeSnap.stderr);
+    const completeDir = join(repo, '.git', 'agent-continuity', 'portable', 'tasks', 'complete-task');
+    const filledHandoff = [
+      '# Handoff: complete-task', '',
+      '## Objective', '', 'Ship the complete task and verify it.', '',
+      '## Acceptance criteria', '', '- Bundle contains only complete tasks.', '',
+      '## Current status', '', 'in_progress', '',
+      '## Completed', '', '- Implemented the guard.', '',
+      '## In progress', '', '- Verifying the export.', '',
+      '## Exact next action', '', 'Assert only the complete task is exported.', '',
+      '## Files changed or relevant', '', '- src/thing.ts', '',
+      '## Decisions and rationale', '', '- Keep it provider-neutral.', '',
+      '## Findings and failed approaches', '', '- None recorded.', '',
+      '## Tests and validation', '', '- Unit tests pass.', '',
+      '## Known blockers or risks', '', '- None.', '',
+      '## Branch, worktree, HEAD, and base', '', '- Branch: `main`', `- Worktree: \`${repo}\``, '- HEAD: `abc123`', '- Base: `main`', '',
+    ].join('\n');
+    writeFileSync(join(completeDir, 'HANDOFF.md'), filledHandoff);
+    // An incomplete non-provisional task (stable id, but placeholders still present).
+    const incompleteSnap = run(['snapshot', '--cwd', repo, '--provider', 'manual', '--event', 'test', '--task', 'incomplete-task'], { env });
+    assert.equal(incompleteSnap.status, 0, incompleteSnap.stderr);
+    const incompleteDir = join(repo, '.git', 'agent-continuity', 'portable', 'tasks', 'incomplete-task');
+    assert.match(readFileSync(join(incompleteDir, 'HANDOFF.md'), 'utf8'), /TO BE COMPLETED BY THE AGENT/);
+    const exported = run(['export', '--cwd', repo, '--target', 'codex'], { env });
+    assert.equal(exported.status, 0, exported.stderr);
+    const bundle = JSON.parse(exported.stdout);
+    const ids = bundle.manifest.tasks.map(t => t.task_id);
+    assert.deepEqual(ids.sort(), ['complete-task'], `manifest tasks: ${JSON.stringify(ids)}`);
+    assert.ok(existsSync(join(bundle.bundle, 'tasks', 'complete-task', 'HANDOFF.md')));
+    assert.equal(existsSync(join(bundle.bundle, 'tasks', 'incomplete-task')), false, 'incomplete task must not be copied into the bundle');
+    const resume = readFileSync(bundle.resume_prompt, 'utf8');
+    assert.match(resume, /complete-task/);
+    assert.doesNotMatch(resume, /incomplete-task/);
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('export refuses placeholder-only provisional tasks (regression #20)', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ac-refuse-'));
+  try {
+    const home = join(base, 'home');
+    const repo = initRepo(base);
+    const env = { HOME: home, USERPROFILE: home };
+    const start = run(['hook', '--provider', 'claude-code'], { env, input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: repo, session_id: 'refuse-session-1' }) });
+    assert.equal(start.status, 0, start.stderr);
+    assert.match(JSON.parse(start.stdout).hookSpecificOutput.additionalContext, /Provider-neutral task: run-/);
+    const exported = run(['export', '--cwd', repo, '--target', 'codex'], { env });
+    assert.notEqual(exported.status, 0, `export should refuse but exited 0 with stdout: ${exported.stdout}`);
+    assert.match(`${exported.stderr}\n${exported.stdout}`, /refus/i);
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('snapshot from a git worktree records that worktree and is not overwritten by the main checkout (regression #20)', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ac-worktree-'));
+  try {
+    const home = join(base, 'home');
+    const repo = initRepo(base);
+    writeFileSync(join(repo, 'README.md'), '# test\n');
+    assert.equal(spawnSync('git', ['-C', repo, 'add', 'README.md']).status, 0);
+    assert.equal(spawnSync('git', ['-C', repo, 'commit', '-m', 'init'], { encoding: 'utf8' }).status, 0);
+    const wt = join(base, 'wt-feature');
+    const added = spawnSync('git', ['-C', repo, 'worktree', 'add', wt, '-b', 'feature-x'], { encoding: 'utf8' });
+    assert.equal(added.status, 0, added.stderr);
+    const env = { HOME: home, USERPROFILE: home };
+    const snap = run(['snapshot', '--cwd', wt, '--provider', 'manual', '--event', 'test', '--task', 'real-task'], { env });
+    assert.equal(snap.status, 0, snap.stderr);
+    const statePath = join(repo, '.git', 'agent-continuity', 'portable', 'tasks', 'real-task', 'state.json');
+    const before = JSON.parse(readFileSync(statePath, 'utf8'));
+    assert.equal(realpathSync(before.worktree), realpathSync(wt));
+    const mainHook = run(['hook', '--provider', 'claude-code'], { env, input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: repo, session_id: 'main-session-1' }) });
+    assert.equal(mainHook.status, 0, mainHook.stderr);
+    const after = JSON.parse(readFileSync(statePath, 'utf8'));
+    assert.equal(realpathSync(after.worktree), realpathSync(wt), 'main checkout must not steal the real task worktree');
+    const registry = JSON.parse(readFileSync(join(repo, '.git', 'agent-continuity', 'portable', 'registry.json'), 'utf8'));
+    assert.equal(realpathSync(registry.tasks['real-task'].worktree), realpathSync(wt));
+    const provisional = Object.keys(registry.tasks).filter(id => /^run-[0-9a-f]{16}$/.test(id));
+    assert.ok(provisional.length >= 1, 'main checkout session should create a separate provisional task');
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('locator continuity_root matches the git-common-dir base (regression #20)', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ac-locator-'));
+  try {
+    const home = join(base, 'home');
+    const repo = initRepo(base);
+    const env = { HOME: home, USERPROFILE: home, AGENT_CONTINUITY_TASK_ID: 'locator-task' };
+    const snap = run(['snapshot', '--cwd', repo, '--provider', 'manual', '--event', 'test'], { env });
+    assert.equal(snap.status, 0, snap.stderr);
+    const commonDir = spawnSync('git', ['-C', repo, 'rev-parse', '--git-common-dir'], { encoding: 'utf8' }).stdout.trim();
+    const expectedBase = join(resolve(repo, commonDir), 'agent-continuity');
+    const pointer = JSON.parse(readFileSync(join(repo, '.agent-continuity-location.json'), 'utf8'));
+    assert.equal(realpathSync(pointer.continuity_root), realpathSync(expectedBase));
+    const symlink = join(repo, '.agent-continuity');
+    if (existsSync(symlink)) assert.equal(realpathSync(symlink), realpathSync(expectedBase));
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('rebind preserves task worktree ownership from a divergent checkout', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ac-rebind-'));
+  try {
+    const home = join(base, 'home');
+    const repo = initRepo(base);
+    writeFileSync(join(repo, 'README.md'), '# test\n');
+    assert.equal(spawnSync('git', ['-C', repo, 'add', 'README.md']).status, 0);
+    assert.equal(spawnSync('git', ['-C', repo, 'commit', '-m', 'init'], { encoding: 'utf8' }).status, 0);
+    const wt = join(base, 'wt-owned');
+    const added = spawnSync('git', ['-C', repo, 'worktree', 'add', wt, '-b', 'owned-branch'], { encoding: 'utf8' });
+    assert.equal(added.status, 0, added.stderr);
+    const env = { HOME: home, USERPROFILE: home };
+    const owned = run(['snapshot', '--cwd', wt, '--provider', 'manual', '--event', 'test', '--task', 'owned-task'], { env });
+    assert.equal(owned.status, 0, owned.stderr);
+    const start = run(['hook', '--provider', 'claude-code'], { env, input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: repo, session_id: 'rebind-session-1' }) });
+    assert.equal(start.status, 0, start.stderr);
+    const registryPath = join(repo, '.git', 'agent-continuity', 'portable', 'registry.json');
+    const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
+    const runRef = Object.keys(registry.provider_runs).find(ref => registry.provider_runs[ref].provider === 'claude-code');
+    assert.ok(runRef, 'expected a claude-code provider run');
+    const rebound = run(['rebind', '--cwd', repo, '--provider-run-ref', runRef, '--task', 'owned-task'], { env });
+    assert.equal(rebound.status, 0, rebound.stderr);
+    const state = JSON.parse(readFileSync(join(repo, '.git', 'agent-continuity', 'portable', 'tasks', 'owned-task', 'state.json'), 'utf8'));
+    const after = JSON.parse(readFileSync(registryPath, 'utf8'));
+    assert.equal(realpathSync(state.worktree), realpathSync(wt));
+    assert.equal(realpathSync(after.tasks['owned-task'].worktree), realpathSync(wt));
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('observed_worktree_mismatch is cleared when the owned worktree hooks again', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ac-mismatch-clear-'));
+  try {
+    const home = join(base, 'home');
+    const repo = initRepo(base);
+    writeFileSync(join(repo, 'README.md'), 'x\n');
+    assert.equal(spawnSync('git', ['-C', repo, 'add', 'README.md']).status, 0);
+    assert.equal(spawnSync('git', ['-C', repo, 'commit', '-m', 'init'], { encoding: 'utf8' }).status, 0);
+    const wt = join(base, 'wt-owned');
+    const added = spawnSync('git', ['-C', repo, 'worktree', 'add', wt, '-b', 'owned-branch'], { encoding: 'utf8' });
+    assert.equal(added.status, 0, added.stderr);
+    const env = { HOME: home, USERPROFILE: home };
+    assert.equal(run(['snapshot', '--cwd', wt, '--provider', 'manual', '--event', 'test', '--task', 'owned-task'], { env }).status, 0);
+    const diverge = run(['hook', '--provider', 'claude-code'], { env, input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: repo, session_id: 'diverge-1' }) });
+    assert.equal(diverge.status, 0, diverge.stderr);
+    // Force the owned task to observe a mismatch via a snapshot from main (different worktree) while task id is forced.
+    const statePath = join(repo, '.git', 'agent-continuity', 'portable', 'tasks', 'owned-task', 'state.json');
+    const afterDivergeHook = run(['snapshot', '--cwd', repo, '--provider', 'manual', '--event', 'test', '--task', 'owned-task'], { env });
+    assert.equal(afterDivergeHook.status, 0, afterDivergeHook.stderr);
+    const mismatched = JSON.parse(readFileSync(statePath, 'utf8'));
+    assert.ok(mismatched.observed_worktree_mismatch, 'expected a recorded mismatch from main checkout');
+    assert.equal(realpathSync(mismatched.worktree), realpathSync(wt), 'ownership must stay on owned worktree');
+    const realign = run(['snapshot', '--cwd', wt, '--provider', 'manual', '--event', 'test', '--task', 'owned-task'], { env });
+    assert.equal(realign.status, 0, realign.stderr);
+    const cleared = JSON.parse(readFileSync(statePath, 'utf8'));
+    assert.equal(cleared.observed_worktree_mismatch, undefined, 'mismatch must clear when owned worktree hooks again');
+    assert.equal(realpathSync(cleared.worktree), realpathSync(wt));
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('export-global refuses when no complete semantic handoff exists', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ac-export-global-'));
+  try {
+    const home = join(base, 'home');
+    const repo = initRepo(base);
+    const env = { HOME: home, USERPROFILE: home };
+    const start = run(['hook', '--provider', 'claude-code'], { env, input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: repo, session_id: 'global-refuse-1' }) });
+    assert.equal(start.status, 0, start.stderr);
+    const exported = run(['export-global', '--target', 'codex'], { env });
+    assert.notEqual(exported.status, 0, `export-global should refuse but exited 0: ${exported.stdout}`);
+    assert.match(`${exported.stderr}\n${exported.stdout}`, /refus/i);
   } finally { rmSync(base, { recursive: true, force: true }); }
 });
 
