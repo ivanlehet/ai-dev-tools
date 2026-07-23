@@ -8,6 +8,8 @@
 - Persist canonical status aliases into `state.json` (e.g. `in_review` → `ready_for_review`).
 - Always refresh `.agent-continuity-location.json` and verify the `.agent-continuity` symlink so `continuity_root` never drifts from the git-common-dir base; `doctor` now checks locator ↔ base consistency (#20).
 - Added runtime and smoke regression tests covering the export/handoff behavior.
+- Compare worktree ownership via realpath (same as `doctor`) so macOS `/var` vs `/private/var` does not false-flag mismatches.
+- Surface real per-task failures from `export-global` instead of always blaming placeholder handoffs.
 
 ## 1.0.7
 

@@ -22,6 +22,7 @@ test('agent-continuity: runtime regression tests lock the export/handoff fix (#2
     'refuses placeholder-only provisional tasks',
     'not overwritten by the main checkout',
     'locator continuity_root matches',
+    'surfaces underlying per-task failures',
   ]) {
     assert.ok(runtimeTests.includes(needle), `missing runtime regression test: ${needle}`);
   }

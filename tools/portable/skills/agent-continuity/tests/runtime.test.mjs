@@ -250,8 +250,14 @@ test('snapshot from a git worktree records that worktree and is not overwritten 
     assert.equal(realpathSync(before.worktree), realpathSync(wt));
     const mainHook = run(['hook', '--provider', 'claude-code'], { env, input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: repo, session_id: 'main-session-1' }) });
     assert.equal(mainHook.status, 0, mainHook.stderr);
+    // Force ensureTask(real-task) from the divergent main checkout (SessionStart alone
+    // creates a separate provisional task and would not exercise ownership preservation).
+    const steal = run(['snapshot', '--cwd', repo, '--provider', 'manual', '--event', 'test', '--task', 'real-task'], { env });
+    assert.equal(steal.status, 0, steal.stderr);
     const after = JSON.parse(readFileSync(statePath, 'utf8'));
     assert.equal(realpathSync(after.worktree), realpathSync(wt), 'main checkout must not steal the real task worktree');
+    assert.ok(after.observed_worktree_mismatch, 'divergent checkout must record observed_worktree_mismatch');
+    assert.equal(realpathSync(after.observed_worktree_mismatch.worktree), realpathSync(repo));
     const registry = JSON.parse(readFileSync(join(repo, '.git', 'agent-continuity', 'portable', 'registry.json'), 'utf8'));
     assert.equal(realpathSync(registry.tasks['real-task'].worktree), realpathSync(wt));
     const provisional = Object.keys(registry.tasks).filter(id => /^run-[0-9a-f]{16}$/.test(id));
@@ -346,6 +352,41 @@ test('export-global refuses when no complete semantic handoff exists', () => {
     const exported = run(['export-global', '--target', 'codex'], { env });
     assert.notEqual(exported.status, 0, `export-global should refuse but exited 0: ${exported.stdout}`);
     assert.match(`${exported.stderr}\n${exported.stdout}`, /refus/i);
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('export-global surfaces underlying per-task failures instead of only blaming placeholders', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ac-export-global-fail-'));
+  try {
+    const home = join(base, 'home');
+    mkdirSync(join(home, '.agent-continuity', 'state'), { recursive: true });
+    const env = { HOME: home, USERPROFILE: home };
+    const missingWt = join(base, 'missing-worktree');
+    writeFileSync(join(home, '.agent-continuity', 'state', 'runs.json'), `${JSON.stringify({
+      schema_version: 7,
+      updated_at: new Date().toISOString(),
+      runs: {
+        'claude-code-deadbeefdeadbeef': {
+          provider_run_ref: 'claude-code-deadbeefdeadbeef',
+          provider: 'claude-code',
+          task_id: 'broken-task',
+          repository: missingWt,
+          git_common_dir: join(missingWt, '.git'),
+          worktree: missingWt,
+          branch: 'main',
+          head: 'abc',
+          last_event: 'SessionStart',
+          lifecycle: 'active',
+          updated_at: new Date().toISOString(),
+        },
+      },
+    }, null, 2)}\n`);
+    const exported = run(['export-global', '--target', 'codex'], { env });
+    assert.notEqual(exported.status, 0, `export-global should refuse but exited 0: ${exported.stdout}`);
+    const text = `${exported.stderr}\n${exported.stdout}`;
+    assert.match(text, /refus/i);
+    assert.match(text, /failed to export|Not inside a Git repository|broken-task/i);
+    assert.doesNotMatch(text, /placeholders remain/);
   } finally { rmSync(base, { recursive: true, force: true }); }
 });
 

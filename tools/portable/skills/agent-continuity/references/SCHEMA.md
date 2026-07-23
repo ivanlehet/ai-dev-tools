@@ -37,7 +37,7 @@ portable/tasks/<task-id>/
 Allowed status values:
 
 ```text
-planned | in_progress | blocked | ready_for_review | completed | abandoned
+planned | in_progress | blocked | ready_for_review | completed | abandoned | cancelled
 ```
 
 The active statuses (included in `list`, `snapshot-all`, and `export`) are `planned`, `in_progress`, `blocked`, and `ready_for_review`. The terminal statuses `completed`, `abandoned`, and `cancelled` are not active.
