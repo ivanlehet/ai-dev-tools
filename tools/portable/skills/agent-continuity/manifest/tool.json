@@ -6,7 +6,7 @@
     "cursor",
     "codex"
   ],
-  "version": "1.0.7",
+  "version": "1.0.8",
   "license": "MIT",
   "summary": "Provider-neutral coding task continuity across Claude Code, Codex, and Cursor.",
   "capabilities": {

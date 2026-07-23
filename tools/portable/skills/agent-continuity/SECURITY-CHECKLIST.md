@@ -10,4 +10,6 @@ unchecked. This is a conscious attestation, not a formality.
 - [x] Side effects and destructive operations are disclosed in the README.
 - [x] Privacy: only necessary data is read/transmitted; nothing sensitive is logged.
 - [x] Every declared target host has passing validation + a fixture.
+- [x] Primary-path smoke test was run for behavior under change (`QUAL004`); live/sandboxed
+      E2E when remote side effects are declared; disposable resources cleaned up.
 - [x] The official spec (https://code.claude.com/docs/en/skills.md) was reviewed on 2026-07-19.
