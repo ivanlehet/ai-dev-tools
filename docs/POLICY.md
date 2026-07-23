@@ -50,6 +50,16 @@ validated, compatible, portable, tested, production-ready* (`DISC003`). Never fa
 validation, compatibility, release, or installation results. A target host is claimed only
 after its validator and fixture actually pass (`DISC004`).
 
+## Quality & smoke tests (`QUAL*`)
+
+Lifecycle commands must do the work they claim (`QUAL001`). Tools ship with meaningful
+tests (`QUAL002`). Before opening a PR that **adds or changes tool behavior**, run a
+**primary-path smoke test** and report the outcome on the PR (`QUAL004`). Automated unit
+or structural smoke alone is not enough when the tool declares `network`, `externalApis`,
+or other remote side effects — then a live or carefully sandboxed end-to-end smoke of the
+happy path is required. Clean up disposable resources afterward. Never claim a smoke
+passed without actually running it.
+
 ## Security (`SEC*`)
 
 Secure defaults, least privilege. No committed secrets or value-bearing `.env` files
