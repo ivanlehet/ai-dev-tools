@@ -1,0 +1,7 @@
+# Default owner. A human reviews and merges; automation never self-merges
+# to a protected branch.
+* @{{OWNER}}
+
+# GitHub automation and security docs are especially sensitive.
+/.github/   @{{OWNER}}
+/SECURITY.md @{{OWNER}}
